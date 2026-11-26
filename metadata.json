@@ -1,0 +1,6 @@
+{
+  "name": "Joker Hotel & Suites",
+  "description": "Real-time suite reservations, secure payment processing, guest loyalty rewards, and hotel operations dashboard for Joker Hotel & Suites in Benin City, Edo.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

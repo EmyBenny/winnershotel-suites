@@ -1,0 +1,478 @@
+{
+  "profile": {
+    "name": "Winners Hotel and Suites",
+    "location": "Benin City, Edo",
+    "address": "Godwin Abbey Way (Limit Rd), Benin City, Edo State",
+    "whatsappPhone": "0905 048 3401",
+    "email": "reservations@winnershotel.com",
+    "flyerImageUrl": "/assets/aistudio/WhatsApp_Image_2026-11-26_at_4.34.50_AM_a7eab22c.jpeg",
+    "checkInTime": "14:00 WAT",
+    "checkOutTime": "12:00 WAT",
+    "ngnPerUsd": 1580,
+    "replyPhone": "0905 048 3402"
+  },
+  "rooms": [
+    {
+      "id": "room-classic",
+      "slug": "standard-room",
+      "name": "Standard Room",
+      "tier": "Standard",
+      "tagline": "Thoughtfully designed for a relaxing and affordable stay without compromising comfort or quality.",
+      "description": "Our Standard Room is thoughtfully designed to provide guests with a relaxing and affordable stay without compromising comfort or quality. Perfect for solo travelers, couples, and short business visits, the room offers a calm and welcoming atmosphere ideal for rest and productivity.",
+      "nightlyRateNgn": 45000,
+      "maxGuests": 2,
+      "bedConfig": "1 Queen Bed",
+      "sizeSqm": 28,
+      "totalUnits": 4,
+      "maintenanceUnits": 0,
+      "status": "available",
+      "imageUrl": "/assets/winners/rooms/standard-2.jpg",
+      "amenities": [
+        "Complimentary Continental Breakfast",
+        "24/7 Power & Climate Control",
+        "Smart TV with Streaming & Fiber Wi-Fi",
+        "24/7 Uniformed Security"
+      ],
+      "highlights": [
+        "Queen bed",
+        "28 m²",
+        "2 Guests max",
+        "Breakfast included"
+      ],
+      "galleryImages": [
+        "/assets/winners/rooms/standard-2.jpg",
+        "/assets/winners/rooms/standard-3.jpg",
+        "/assets/winners/rooms/standard-4.jpg",
+        "/assets/winners/rooms/standard-5.jpg",
+        "/assets/winners/rooms/standard-6.jpg"
+      ]
+    },
+    {
+      "id": "room-deluxe",
+      "slug": "deluxe-room",
+      "name": "Deluxe Room",
+      "tier": "Deluxe",
+      "tagline": "Extra space, style, and convenience combining modern luxury with warm hospitality.",
+      "description": "Experience a higher level of comfort in our Deluxe Room, designed for guests who appreciate extra space, style, and convenience. Combining modern luxury with warm hospitality, this room creates the perfect environment for relaxation after a busy day.",
+      "nightlyRateNgn": 75000,
+      "maxGuests": 2,
+      "bedConfig": "1 King Bed",
+      "sizeSqm": 36,
+      "totalUnits": 4,
+      "maintenanceUnits": 0,
+      "status": "available",
+      "imageUrl": "/assets/winners/rooms/deluxe-main.jpg",
+      "amenities": [
+        "Executive Oak Workstation",
+        "Welcome Cocktail at Gold Room Lounge",
+        "24-Hour F&B Room Service",
+        "Express Laundry Service"
+      ],
+      "highlights": [
+        "King bed",
+        "36 m²",
+        "2 Guests max",
+        "Lounge welcome drink"
+      ],
+      "galleryImages": [
+        "/assets/winners/rooms/deluxe-main.jpg",
+        "/assets/winners/rooms/deluxe-1.jpg",
+        "/assets/winners/rooms/deluxe-2.jpg",
+        "/assets/winners/rooms/deluxe-3.jpg",
+        "/assets/winners/rooms/deluxe-4.jpg"
+      ]
+    },
+    {
+      "id": "room-ambassador",
+      "slug": "executive-room",
+      "name": "Executive Room",
+      "tier": "Executive",
+      "tagline": "Specially crafted for premium comfort, privacy, and sophistication.",
+      "description": "Our Executive Room is specially crafted for guests seeking premium comfort, privacy, and sophistication. With stylish interiors, spacious accommodation, and enhanced amenities, this room offers a truly refined hospitality experience.",
+      "nightlyRateNgn": 120000,
+      "maxGuests": 3,
+      "bedConfig": "1 King Bed + Lounge Seating",
+      "sizeSqm": 54,
+      "totalUnits": 3,
+      "maintenanceUnits": 0,
+      "status": "available",
+      "imageUrl": "/assets/winners/rooms/executive-main.jpg",
+      "amenities": [
+        "Complimentary Airport Chauffeur",
+        "Spacious Living & Lounge Corner",
+        "Continental Chef Dining Credit",
+        "Priority Check-In & Late Checkout"
+      ],
+      "highlights": [
+        "King + Lounge",
+        "54 m²",
+        "3 Guests max",
+        "Chauffeur pickup"
+      ],
+      "galleryImages": [
+        "/assets/winners/rooms/executive-main.jpg",
+        "/assets/winners/rooms/executive-1.jpg",
+        "/assets/winners/rooms/executive-2.jpg",
+        "/assets/winners/rooms/executive-3.jpg",
+        "/assets/winners/rooms/executive-4.jpg"
+      ]
+    },
+    {
+      "id": "room-lounge",
+      "slug": "suite-room",
+      "name": "Suite Room",
+      "tier": "Suite",
+      "tagline": "Separate living and sleeping areas with modern elegance for extended stays.",
+      "description": "Our Suite Room offers a perfect blend of luxury, comfort, and modern elegance for guests who desire a more spacious and refined experience. Beautifully designed with separate living and sleeping areas, the Suite provides the ideal environment for relaxation, business, and extended stays.",
+      "nightlyRateNgn": 185000,
+      "maxGuests": 3,
+      "bedConfig": "1 King Bed + Private Parlour",
+      "sizeSqm": 72,
+      "totalUnits": 2,
+      "maintenanceUnits": 0,
+      "status": "available",
+      "imageUrl": "/assets/winners/rooms/suite-4.jpg",
+      "amenities": [
+        "Separate Living & Sleeping Parlour",
+        "VIP Reserved Table at Gold Room Lounge",
+        "Private Chauffeur City Transfers",
+        "Complimentary Full-Board Breakfast"
+      ],
+      "highlights": [
+        "King + Parlour",
+        "72 m²",
+        "3 Guests max",
+        "VIP Lounge access"
+      ],
+      "galleryImages": [
+        "/assets/winners/rooms/suite-4.jpg",
+        "/assets/winners/rooms/suite-1.jpg",
+        "/assets/winners/rooms/suite-2.jpg",
+        "/assets/winners/rooms/suite-3.jpg"
+      ]
+    },
+    {
+      "id": "room-presidential",
+      "slug": "presidential-room",
+      "name": "Presidential Room",
+      "tier": "Presidential",
+      "tagline": "The highest standard of luxury, exclusivity, and prestige at Winners Hotel and Suites.",
+      "description": "The Presidential Room represents the highest standard of luxury and prestige at Winners Hotel and Suites. Designed for distinguished guests who desire elegance, exclusivity, and world-class comfort, this exceptional accommodation delivers an unforgettable experience.",
+      "nightlyRateNgn": 320000,
+      "maxGuests": 4,
+      "bedConfig": "2 King Bedrooms + Grand Salon",
+      "sizeSqm": 128,
+      "totalUnits": 1,
+      "maintenanceUnits": 0,
+      "status": "available",
+      "imageUrl": "/assets/winners/rooms/presidential-main.jpg",
+      "amenities": [
+        "Private Continental Chef Dinner",
+        "Dedicated Chauffeur & Security Escort",
+        "24/7 Butler & F&B Supervisor Service",
+        "Private Executive Boardroom Access"
+      ],
+      "highlights": [
+        "2 King Suites",
+        "128 m²",
+        "4 Guests max",
+        "Private chef & driver"
+      ],
+      "galleryImages": [
+        "/assets/winners/rooms/presidential-main.jpg",
+        "/assets/winners/rooms/presidential-1.jpg",
+        "/assets/winners/rooms/presidential-2.jpg",
+        "/assets/winners/rooms/presidential-3.jpg",
+        "/assets/winners/rooms/presidential-4.jpg",
+        "/assets/winners/rooms/presidential-5.jpg",
+        "/assets/winners/rooms/presidential-7.jpg"
+      ]
+    }
+  ],
+  "amenities": [
+    {
+      "id": "amen-rooms-breakfast",
+      "title": "Luxury Rooms + Free Breakfast",
+      "category": "Accommodation",
+      "description": "Five luxury room tiers with 24/7 uninterrupted power, fiber Wi-Fi, and complimentary daily continental & local breakfast.",
+      "hours": "Breakfast 06:30 – 10:30",
+      "flyerDepartment": "Housekeeping & Breakfast Culinary Team",
+      "imageUrl": "/assets/winners/rooms/presidential-main.jpg"
+    },
+    {
+      "id": "amen-gym-pool",
+      "title": "24/7 Gym & Swimming · Gym Memberships",
+      "category": "Wellness & Fitness",
+      "description": "Floodlit resort swimming pool and 24-hour fitness studio open to in-house guests and monthly Gym Membership subscribers.",
+      "hours": "24/7 Open Access",
+      "flyerDepartment": "Wellness & Pool Operations",
+      "imageUrl": "/src/assets/images/facility_pool_gym_1795699580653.jpg",
+      "videoUrl": "/videos/joker-gym-pool-tour.mp4"
+    },
+    {
+      "id": "amen-gold-lounge",
+      "title": "Gold Room Lounge",
+      "category": "VIP Nightlife",
+      "description": "Signature warm-lit leather and brass lounge pouring aged spirits, craft cocktails, and curated platters with attentive table service.",
+      "hours": "16:00 – 02:00 Daily",
+      "flyerDepartment": "F&B Supervisor & Bar Staff",
+      "imageUrl": "/src/assets/images/facility_gold_lounge_1795699570355.jpg",
+      "videoUrl": "/videos/joker-gold-lounge.mp4"
+    },
+    {
+      "id": "amen-events-dinners",
+      "title": "Event & Meeting Halls · Celebration Dinners",
+      "category": "Events & Dining",
+      "description": "Acoustically equipped banquet halls, corporate conference suites, and private candlelit setups for milestone Celebration Dinners.",
+      "hours": "07:00 – 00:00 By Booking",
+      "flyerDepartment": "Events Team & Continental Chef",
+      "imageUrl": "/src/assets/images/facility_event_hall_1795699570632.jpg",
+      "videoUrl": "/videos/joker-events-celebrations.mp4"
+    },
+    {
+      "id": "amen-joker-kitchen",
+      "title": "Winners Kitchen (24/7) – Takeout & Delivery",
+      "category": "Culinary 24/7",
+      "description": "Round-the-clock Local & Intercontinental dishes cooked fresh to order for suite service, quick takeout, or Benin City doorstep delivery.",
+      "hours": "24/7 Kitchen & Dispatch",
+      "flyerDepartment": "Continental Chef, Cooks & Riders",
+      "imageUrl": "/src/assets/images/facility_joker_kitchen_1795699569853.jpg",
+      "videoUrl": "/videos/joker-kitchen-24-7.mp4"
+    },
+    {
+      "id": "amen-supermarket",
+      "title": "On-Site Supermarket",
+      "category": "Retail Mart",
+      "description": "Well-stocked hospitality convenience mart with chilled beverages, imported snacks, toiletries, wines, and everyday travel essentials.",
+      "hours": "07:00 – 23:30 Daily",
+      "flyerDepartment": "Storekeeper & Retail Cashier",
+      "imageUrl": "/src/assets/images/facility_supermarket_mart_1795699569847.jpg"
+    },
+    {
+      "id": "amen-photoshoots",
+      "title": "Photo Shoots & Editorial Locations",
+      "category": "Media Studio",
+      "description": "Bookable architectural backdrops, golden-hour poolside decks, and private suite sets for bridal, fashion, and brand photo shoots.",
+      "hours": "08:00 – 20:00 Daily",
+      "flyerDepartment": "Social Media & Guest Relations",
+      "imageUrl": "/src/assets/images/facility_photoshoot_studio_1795699571078.jpg"
+    },
+    {
+      "id": "amen-salon-spa",
+      "title": "Winners Unisex Salon & Spa",
+      "category": "Grooming & Spa",
+      "description": "Serving both male and female guests with precision haircuts, grooming, hair styling, and rejuvenating cosmetic & spa treatments.",
+      "hours": "08:00 – 21:00 Daily",
+      "flyerDepartment": "Winners Salon & Spa Stylists",
+      "imageUrl": "/assets/winners/salon-1.jpg"
+    },
+    {
+      "id": "amen-boutique",
+      "title": "Winners Luxury Fashion Boutique",
+      "category": "Style & Retail",
+      "description": "Curated quality fashion, designer sneakers, footwear, caps, belts, and statement apparel so you can shop the lifestyle of luxury on-site.",
+      "hours": "09:00 – 21:30 Daily",
+      "flyerDepartment": "Winners Boutique Concierge",
+      "imageUrl": "/assets/winners/boutique-1.jpg"
+    },
+    {
+      "id": "amen-gaming",
+      "title": "Games & Entertainment Lounge",
+      "category": "Recreation",
+      "description": "We keep you busy and entertained with Snooker boards, Table Soccer, PS4, and PS5 console stations for friendly guest competition.",
+      "hours": "10:00 – 01:00 Daily",
+      "flyerDepartment": "Entertainment & Lounge Team",
+      "imageUrl": "/assets/winners/hotel-showcase-1.jpg"
+    },
+    {
+      "id": "amen-chauffeur-security",
+      "title": "Chauffeur Shuttle & 24/7 Security",
+      "category": "Transport & Safety",
+      "description": "Benin Airport pickups with experienced drivers, monitored CCTV perimeter, and round-the-clock uniformed security personnel.",
+      "hours": "24/7 Continuous",
+      "flyerDepartment": "Experienced Drivers & Security Personnel"
+    }
+  ],
+  "reservations": [
+    {
+      "id": "res-seed-1",
+      "bookingRef": "JHS-2611-8402",
+      "roomId": "room-lounge",
+      "roomName": "Suite Room",
+      "guestName": "Osahon Igbinedion",
+      "guestEmail": "uzorbenny51@gmail.com",
+      "guestPhone": "+234 803 551 9024",
+      "checkIn": "2026-11-27",
+      "checkOut": "2026-11-29",
+      "nights": 2,
+      "guestsCount": 2,
+      "specialRequests": "Late evening lounge table reservation for 20:30.",
+      "airportPickup": true,
+      "subtotalNgn": 370000,
+      "serviceFeeNgn": 27750,
+      "promoDiscountNgn": 0,
+      "loyaltyDiscountNgn": 0,
+      "totalPaidNgn": 397750,
+      "paymentMethod": "card",
+      "paymentRef": "PAY-JHS-908412",
+      "cardLast4": "4242",
+      "cardBrand": "Visa",
+      "paymentStatus": "paid",
+      "status": "confirmed",
+      "pointsEarned": 397,
+      "pointsRedeemed": 0,
+      "emailConfirmedAt": "2026-11-25T12:54:38.829Z",
+      "createdAt": "2026-11-25T12:54:38.829Z",
+      "updatedAt": "2026-11-25T12:54:38.829Z"
+    },
+    {
+      "id": "res-seed-2",
+      "bookingRef": "JHS-2611-7319",
+      "roomId": "room-deluxe",
+      "roomName": "Deluxe Room",
+      "guestName": "Efosa Obaseki",
+      "guestEmail": "efosa.obaseki@example.com",
+      "guestPhone": "+234 809 224 1870",
+      "checkIn": "2026-11-25",
+      "checkOut": "2026-11-27",
+      "nights": 2,
+      "guestsCount": 1,
+      "specialRequests": "Quiet high-floor room, morning coffee at 07:00.",
+      "airportPickup": false,
+      "subtotalNgn": 150000,
+      "serviceFeeNgn": 11250,
+      "promoDiscountNgn": 0,
+      "loyaltyDiscountNgn": 0,
+      "totalPaidNgn": 161250,
+      "paymentMethod": "bank_transfer",
+      "paymentRef": "TRF-JHS-663201",
+      "paymentStatus": "paid",
+      "status": "checked_in",
+      "pointsEarned": 161,
+      "pointsRedeemed": 0,
+      "emailConfirmedAt": "2026-11-24T12:54:38.829Z",
+      "createdAt": "2026-11-24T12:54:38.829Z",
+      "updatedAt": "2026-11-26T00:54:38.829Z"
+    },
+    {
+      "id": "res-seed-3",
+      "bookingRef": "JHS-2611-5920",
+      "roomId": "room-ambassador",
+      "roomName": "Executive Room",
+      "guestName": "Adesuwa Egharevba",
+      "guestEmail": "adesuwa.e@example.com",
+      "guestPhone": "+234 812 904 3311",
+      "checkIn": "2026-11-26",
+      "checkOut": "2026-12-01",
+      "nights": 5,
+      "guestsCount": 2,
+      "specialRequests": "Benin Airport pickup on arrival.",
+      "airportPickup": true,
+      "subtotalNgn": 600000,
+      "serviceFeeNgn": 45000,
+      "promoDiscountNgn": 90000,
+      "loyaltyDiscountNgn": 0,
+      "totalPaidNgn": 555000,
+      "paymentMethod": "card",
+      "paymentRef": "PAY-JHS-552104",
+      "cardLast4": "8819",
+      "cardBrand": "Mastercard",
+      "paymentStatus": "paid",
+      "status": "checked_in",
+      "pointsEarned": 555,
+      "pointsRedeemed": 0,
+      "emailConfirmedAt": "2026-11-23T12:54:38.829Z",
+      "createdAt": "2026-11-23T12:54:38.829Z",
+      "updatedAt": "2026-11-26T06:54:38.829Z"
+    }
+  ],
+  "emailLogs": [
+    {
+      "id": "mail-seed-1",
+      "bookingRef": "JHS-2611-8402",
+      "toEmail": "uzorbenny51@gmail.com",
+      "guestName": "Osahon Igbinedion",
+      "subject": "Reservation Confirmed · Winners Hotel and Suites (JHS-2611-8402)",
+      "bodyText": "Dear Osahon Igbinedion,\n\nYour reservation JHS-2611-8402 for Suite Room (2026-11-27 to 2026-11-29) is confirmed.\nTotal Paid: NGN 397,750\nCheck-in: 14:00 WAT · Benin City, Edo.\nWhatsApp Concierge: 0905 048 3401",
+      "bodyHtml": "<div style=\"font-family:sans-serif;padding:24px;background:#F7F5F0;color:#14120F\"><h2>Reservation Confirmed: JHS-2611-8402</h2><p>Dear Osahon Igbinedion, thank you for choosing Winners Hotel and Suites, Benin City, Edo.</p><p><strong>Suite:</strong> Suite Room<br/><strong>Stay:</strong> 2026-11-27 to 2026-11-29 (2 nights)<br/><strong>Total Paid:</strong> ₦397,750</p><p>Need airport chauffeur assistance? Message us on WhatsApp at <strong>0905 048 3401</strong>.</p></div>",
+      "deliveryMode": "dispatch_log",
+      "status": "sent",
+      "sentAt": "2026-11-25T12:54:38.829Z"
+    }
+  ],
+  "loyaltyAccounts": [
+    {
+      "memberId": "JHS-RC-8841",
+      "guestEmail": "uzorbenny51@gmail.com",
+      "guestName": "Osahon Igbinedion",
+      "points": 1450,
+      "lifetimePoints": 1850,
+      "tier": "Gold Crown",
+      "history": [
+        {
+          "id": "loy-1",
+          "date": "2026-11-25T12:54:38.829Z",
+          "description": "Stay Points Earned · Joker Signature Lounge Suite",
+          "pointsDelta": 397,
+          "bookingRef": "JHS-2611-8402"
+        },
+        {
+          "id": "loy-2",
+          "date": "2026-11-12T12:54:38.829Z",
+          "description": "Gold Crown Tier Welcome Bonus",
+          "pointsDelta": 500
+        },
+        {
+          "id": "loy-3",
+          "date": "2026-10-27T12:54:38.829Z",
+          "description": "Executive Room Weekend Stay",
+          "pointsDelta": 953
+        }
+      ]
+    }
+  ],
+  "promotions": [
+    {
+      "id": "promo-1",
+      "title": "Edo Heritage Festive Escape — 15% Off Suites",
+      "code": "BENIN15",
+      "discountPercent": 15,
+      "validUntil": "2026-12-31",
+      "description": "Save 15% on Executive, Suite, and Presidential Rooms with complimentary airport chauffeur pickup.",
+      "category": "Seasonal Offer",
+      "active": true,
+      "createdAt": "2026-11-24T15:36:25.967Z"
+    },
+    {
+      "id": "promo-2",
+      "title": "Executive Lounge & Continental Dinner Package",
+      "code": "LOUNGE10",
+      "discountPercent": 10,
+      "validUntil": "2026-12-17",
+      "description": "Enjoy 10% off Deluxe and Suite Rooms plus priority evening seating at Winners Bar & Grill.",
+      "category": "Lounge & Dining",
+      "active": true,
+      "createdAt": "2026-11-25T15:36:25.967Z"
+    }
+  ],
+  "notifications": [
+    {
+      "id": "notif-seed-1",
+      "title": "Upcoming Check-In Tomorrow · JHS-2611-8402",
+      "body": "Your Suite Room is being prepared for check-in tomorrow (2026-11-27) at 14:00 WAT. Tap to confirm airport chauffeur pickup.",
+      "category": "booking_reminder",
+      "bookingRef": "JHS-2611-8402",
+      "createdAt": "2026-11-26T11:54:38.829Z"
+    },
+    {
+      "id": "notif-seed-2",
+      "title": "Seasonal Offer: 15% Off Suites (BENIN15)",
+      "body": "Book any Ambassadorial or Signature Lounge Suite before season close and unlock 15% savings plus complimentary airport pickup.",
+      "category": "promotion",
+      "promoCode": "BENIN15",
+      "createdAt": "2026-11-26T10:54:38.829Z"
+    }
+  ],
+  "adminCredential": null,
+  "inquiries": []
+}

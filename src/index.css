@@ -1,0 +1,64 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-display: "Cormorant Garamond", Georgia, serif;
+  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+:root {
+  --brand-crimson: #E21E51;
+  --brand-crimson-hover: #C81645;
+  --brand-midnight: #040037;
+  --brand-royal: #032075;
+  --brand-slate: #514D7C;
+  --brand-muted: #666699;
+  --brand-border: #DEDDEB;
+  --brand-surface-alt: #EFEFF5;
+  --brand-canvas: #F8F9FA;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    scroll-behavior: smooth;
+  }
+
+  h1, h2, .font-editorial {
+    font-family: var(--font-display);
+  }
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.smart-gold-canvas {
+  background-color: #B8113C;
+  background-image:
+    radial-gradient(1200px 600px at 10% 0%, rgba(255, 118, 152, 0.28), transparent 58%),
+    radial-gradient(960px 540px at 90% 10%, rgba(4, 0, 55, 0.22), transparent 64%),
+    linear-gradient(175deg, #E21E51 0%, #B8113C 52%, #8A092B 100%);
+}
+
+html.dark .smart-gold-canvas {
+  background-color: #5C061C;
+  background-image:
+    radial-gradient(1100px 540px at 12% 0%, rgba(226, 30, 81, 0.34), transparent 58%),
+    radial-gradient(920px 520px at 88% 16%, rgba(4, 0, 55, 0.55), transparent 62%),
+    linear-gradient(170deg, #7D0A27 0%, #520419 55%, #2D010D 100%);
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
