@@ -48,7 +48,8 @@ export async function dispatchConfirmationEmail(
     '',
     `CONCIERGE & ARRIVAL`,
     `Address: ${profile.address}`,
-    `Immediate Reply Line: ${profile.replyPhone || '0905 048 3402'} · WhatsApp: ${profile.whatsappPhone}`,
+    `Call Us: ${profile.replyPhone || '+234 812 595 7751'} · ${profile.whatsappPhone || '+2349074489687'}`,
+    `Email Us: ${profile.email || 'info@winnersgroupofcompany.com'} · ${profile.secondaryEmail || 'manager@winnersgroupofcompany.com'}`,
   ]
     .filter(Boolean)
     .join('\n');
@@ -62,7 +63,7 @@ export async function dispatchConfirmationEmail(
       <div style="padding:28px 32px;background:#FFFFFF;">
         <p style="margin:0 0 8px;font-size:13px;color:#514D7C;">Booking Reference</p>
         <p style="margin:0 0 20px;font-family:monospace;font-size:20px;font-weight:700;color:#040037;">${escapeHtml(reservation.bookingRef)}</p>
-        <p style="margin:0 0 18px;font-size:15px;line-height:1.6;">Dear ${escapeHtml(reservation.guestName)}, your stay in Benin City is confirmed (Free Breakfast included). Below is your official confirmation and payment receipt.</p>
+        <p style="margin:0 0 18px;font-size:15px;line-height:1.6;">Dear ${escapeHtml(reservation.guestName)}, your stay in ${escapeHtml(profile.location)} is confirmed (Free Breakfast included). Below is your official confirmation and payment receipt.</p>
         <table style="width:100%;border-collapse:collapse;margin:20px 0;font-size:14px;">
           <tr><td style="padding:8px 0;border-bottom:1px solid #DEDDEB;color:#514D7C;">Suite</td><td style="padding:8px 0;border-bottom:1px solid #DEDDEB;text-align:right;font-weight:600;">${escapeHtml(reservation.roomName)}</td></tr>
           <tr><td style="padding:8px 0;border-bottom:1px solid #DEDDEB;color:#514D7C;">Check-In</td><td style="padding:8px 0;border-bottom:1px solid #DEDDEB;text-align:right;">${escapeHtml(reservation.checkIn)} · ${escapeHtml(profile.checkInTime)}</td></tr>
@@ -71,7 +72,7 @@ export async function dispatchConfirmationEmail(
           <tr><td style="padding:12px 0;font-weight:700;font-size:16px;">Total Paid</td><td style="padding:12px 0;text-align:right;font-weight:700;font-size:16px;color:#E21E51;">${escapeHtml(formatNgn(reservation.totalPaidNgn))}</td></tr>
         </table>
         <p style="margin:16px 0 0;font-size:13px;color:#514D7C;">Winners Royal Club Points Earned: <strong>+${reservation.pointsEarned} pts</strong></p>
-        <p style="margin:12px 0 0;font-size:13px;color:#514D7C;">For immediate reply call <strong>${escapeHtml(profile.replyPhone || '0905 048 3402')}</strong> or message WhatsApp <strong>${escapeHtml(profile.whatsappPhone)}</strong>.</p>
+        <p style="margin:12px 0 0;font-size:13px;color:#514D7C;">Call us on <strong>${escapeHtml(profile.replyPhone || '+234 812 595 7751')}</strong> or <strong>${escapeHtml(profile.whatsappPhone || '+2349074489687')}</strong> · Email: <strong>${escapeHtml(profile.email || 'info@winnersgroupofcompany.com')}</strong> / <strong>${escapeHtml(profile.secondaryEmail || 'manager@winnersgroupofcompany.com')}</strong>.</p>
       </div>
     </div>
   `.trim();

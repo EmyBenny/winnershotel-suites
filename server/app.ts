@@ -750,7 +750,7 @@ export function createApiApp(options: ApiAppOptions = {}): express.Express {
 
     res.status(201).json({
       inquiry,
-      replyPhone: db.profile.replyPhone || '0905 048 3402',
+      replyPhone: db.profile.replyPhone || '+234 812 595 7751',
     });
   });
 

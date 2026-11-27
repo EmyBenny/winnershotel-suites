@@ -1,15 +1,16 @@
 {
   "profile": {
     "name": "Winners Hotel and Suites",
-    "location": "Benin City, Edo",
-    "address": "Godwin Abbey Way (Limit Rd), Benin City, Edo State",
-    "whatsappPhone": "0905 048 3401",
-    "email": "reservations@winnershotel.com",
+    "location": "Agbor, Delta State",
+    "address": "NDDC Road Along Ojemeh Street, Alihame Iwan, Agbor, Delta State, Nigeria",
+    "whatsappPhone": "+2349074489687",
+    "email": "info@winnersgroupofcompany.com",
     "flyerImageUrl": "/assets/aistudio/WhatsApp_Image_2026-11-26_at_4.34.50_AM_a7eab22c.jpeg",
     "checkInTime": "14:00 WAT",
     "checkOutTime": "12:00 WAT",
     "ngnPerUsd": 1580,
-    "replyPhone": "0905 048 3402"
+    "replyPhone": "+234 812 595 7751",
+    "secondaryEmail": "manager@winnersgroupofcompany.com"
   },
   "rooms": [
     {
@@ -233,7 +234,7 @@
       "id": "amen-joker-kitchen",
       "title": "Winners Kitchen (24/7) – Takeout & Delivery",
       "category": "Culinary 24/7",
-      "description": "Round-the-clock Local & Intercontinental dishes cooked fresh to order for suite service, quick takeout, or Benin City doorstep delivery.",
+      "description": "Round-the-clock Local & Intercontinental dishes cooked fresh to order for suite service, quick takeout, or Agbor doorstep delivery.",
       "hours": "24/7 Kitchen & Dispatch",
       "flyerDepartment": "Continental Chef, Cooks & Riders",
       "imageUrl": "/src/assets/images/facility_joker_kitchen_1795699569853.jpg",

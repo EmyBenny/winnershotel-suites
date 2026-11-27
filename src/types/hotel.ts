@@ -157,6 +157,7 @@ export interface HotelProfile {
   whatsappPhone: string;
   replyPhone: string;
   email: string;
+  secondaryEmail?: string;
   flyerImageUrl: string;
   checkInTime: string;
   checkOutTime: string;

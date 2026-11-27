@@ -79,11 +79,12 @@ function createInitialDb(): HotelDatabase {
   return {
     profile: {
       name: 'Winners Hotel and Suites',
-      location: 'Benin City, Edo',
-      address: 'Godwin Abbey Way (Limit Rd), Benin City, Edo State',
-      whatsappPhone: '0905 048 3401',
-      replyPhone: '0905 048 3402',
-      email: 'reservations@winnershotel.com',
+      location: 'Agbor, Delta State',
+      address: 'NDDC Road Along Ojemeh Street, Alihame Iwan, Agbor, Delta State, Nigeria',
+      whatsappPhone: '+2349074489687',
+      replyPhone: '+234 812 595 7751',
+      email: 'info@winnersgroupofcompany.com',
+      secondaryEmail: 'manager@winnersgroupofcompany.com',
       flyerImageUrl: '/assets/aistudio/WhatsApp_Image_2026-11-26_at_4.34.50_AM_a7eab22c.jpeg',
       checkInTime: '14:00 WAT',
       checkOutTime: '12:00 WAT',
@@ -296,7 +297,7 @@ function createInitialDb(): HotelDatabase {
         title: 'Winners Kitchen (24/7) – Takeout & Delivery',
         category: 'Culinary 24/7',
         description:
-          'Round-the-clock Local & Intercontinental dishes cooked fresh to order for suite service, quick takeout, or Benin City doorstep delivery.',
+          'Round-the-clock Local & Intercontinental dishes cooked fresh to order for suite service, quick takeout, or Agbor doorstep delivery.',
         hours: '24/7 Kitchen & Dispatch',
         flyerDepartment: 'Continental Chef, Cooks & Riders',
         imageUrl: '/src/assets/images/facility_joker_kitchen_1795699569853.jpg',
@@ -463,8 +464,8 @@ function createInitialDb(): HotelDatabase {
         toEmail: 'uzorbenny51@gmail.com',
         guestName: 'Osahon Igbinedion',
         subject: 'Reservation Confirmed · Winners Hotel and Suites (WHS-2611-8402)',
-        bodyText: `Dear Osahon Igbinedion,\n\nYour reservation WHS-2611-8402 for Suite Room (${tomorrow} to ${inThreeDays}) is confirmed.\nTotal Paid: NGN 397,750\nCheck-in: 14:00 WAT · Benin City, Edo.\nWhatsApp Concierge: 0905 048 3401`,
-        bodyHtml: `<div style="font-family:sans-serif;padding:24px;background:#F8F9FA;color:#040037"><h2>Reservation Confirmed: WHS-2611-8402</h2><p>Dear Osahon Igbinedion, thank you for choosing Winners Hotel and Suites, Benin City, Edo.</p><p><strong>Suite:</strong> Suite Room<br/><strong>Stay:</strong> ${tomorrow} to ${inThreeDays} (2 nights)<br/><strong>Total Paid:</strong> ₦397,750</p><p>Need airport chauffeur assistance? Message us on WhatsApp at <strong>0905 048 3401</strong>.</p></div>`,
+        bodyText: `Dear Osahon Igbinedion,\n\nYour reservation WHS-2611-8402 for Suite Room (${tomorrow} to ${inThreeDays}) is confirmed.\nTotal Paid: NGN 397,750\nCheck-in: 14:00 WAT · Agbor, Delta State.\nCall Us: +234 812 595 7751 · +2349074489687 · info@winnersgroupofcompany.com`,
+        bodyHtml: `<div style="font-family:sans-serif;padding:24px;background:#F8F9FA;color:#040037"><h2>Reservation Confirmed: WHS-2611-8402</h2><p>Dear Osahon Igbinedion, thank you for choosing Winners Hotel and Suites, Agbor, Delta State.</p><p><strong>Suite:</strong> Suite Room<br/><strong>Stay:</strong> ${tomorrow} to ${inThreeDays} (2 nights)<br/><strong>Total Paid:</strong> ₦397,750</p><p>Call us on <strong>+234 812 595 7751</strong> or <strong>+2349074489687</strong> · Email: <strong>info@winnersgroupofcompany.com</strong>.</p></div>`,
         deliveryMode: 'dispatch_log',
         status: 'sent',
         sentAt: new Date(Date.now() - 86400000).toISOString(),
@@ -679,6 +680,22 @@ function migrateParsedDb(parsed: HotelDatabase): { db: HotelDatabase; migrated: 
       n.body = renameRoom(n.body);
     }
     parsed.promotions = defaults.promotions;
+    migrated = true;
+  }
+
+  if (
+    parsed.profile?.address?.includes('Godwin Abbey') ||
+    parsed.profile?.replyPhone === '0905 048 3402' ||
+    parsed.profile?.email === 'reservations@winnershotel.com' ||
+    !parsed.profile?.secondaryEmail
+  ) {
+    parsed.profile.location = defaults.profile.location;
+    parsed.profile.address = defaults.profile.address;
+    parsed.profile.whatsappPhone = defaults.profile.whatsappPhone;
+    parsed.profile.replyPhone = defaults.profile.replyPhone;
+    parsed.profile.email = defaults.profile.email;
+    parsed.profile.secondaryEmail = defaults.profile.secondaryEmail;
+    parsed.amenities = defaults.amenities;
     migrated = true;
   }
 

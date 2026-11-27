@@ -567,7 +567,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               Kitchen, Salon &amp; Spa, Boutique, Games, Events &amp; Photo Shoot Inquiries
             </h3>
             <p className="mt-0.5 text-xs text-[#514D7C] dark:text-[#C5C2E3]">
-              Direct desk requests submitted from the hospitality showcase · Immediate line: 0905 048 3402
+              Direct desk requests submitted from the hospitality showcase · Call Us: +234 812 595 7751 / +2349074489687
             </p>
           </div>
           <div className="overflow-x-auto">

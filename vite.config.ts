@@ -17,7 +17,7 @@ export default defineConfig(() => {
           id: '/',
           name: 'Winners Hotel and Suites',
           short_name: 'Winners Suites',
-          description: 'Luxury boutique hospitality, real-time room booking, loyalty rewards, and concierge alerts in Benin City, Edo.',
+          description: 'Luxury hospitality, real-time room booking, loyalty rewards, and concierge alerts in Agbor, Delta State, Nigeria.',
           theme_color: '#B8113C',
           background_color: '#B8113C',
           display: 'standalone',

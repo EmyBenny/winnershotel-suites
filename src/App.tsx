@@ -54,7 +54,7 @@ const HERO_SLIDES = [
     id: 'lounge',
     label: 'Lounge',
     url: '/src/assets/images/hero_joker_hotel_1795697384371.jpg',
-    alt: 'Winners Hotel and Suites evening lobby and cocktail lounge in Benin City',
+    alt: 'Winners Hotel and Suites evening lobby and cocktail lounge in Agbor, Delta State',
     caption: 'Gold Room Lounge & Evening Bar',
   },
   {
@@ -422,14 +422,14 @@ export default function App() {
                         Stay with us and enjoy the luxuries meant for royalty alone.
                       </h1>
                       <p className="mt-5 max-w-xl text-base leading-relaxed text-white/95 [text-shadow:0_1px_10px_rgba(4,0,55,0.9)]">
-                        Welcome to Winners Hotel and Suites in Benin City — flagship of the Winners
-                        Group hospitality tradition. Whether traveling for business, conferences,
-                        celebrations, or a relaxing getaway, enjoy luxury suites with free breakfast,
-                        24/7 gym &amp; swimming, Gold Room Lounge, Unisex Salon, Boutique, Gaming,
-                        and 24/7 Winners Kitchen delivery.
+                        Welcome to Winners Hotel and Suites in Agbor, Delta State — flagship of the
+                        Winners Group hospitality tradition. Whether traveling for business,
+                        conferences, celebrations, or a relaxing getaway, enjoy luxury rooms with
+                        free breakfast, 24/7 gym &amp; swimming, Gold Room Lounge, Unisex Salon,
+                        Boutique, Gaming, and 24/7 Winners Kitchen delivery.
                       </p>
                       <p className="mt-4 tabular-nums text-xs font-medium text-[#FFE4EC] [text-shadow:0_1px_8px_rgba(4,0,55,0.9)]">
-                        {totalOpenUnits} of {totalCapacityUnits} suites open · Immediate reply {profile?.replyPhone || '0905 048 3402'} · WhatsApp {profile?.whatsappPhone || '0905 048 3401'}
+                        {totalOpenUnits} of {totalCapacityUnits} rooms open · Call {profile?.replyPhone || '+234 812 595 7751'} / {profile?.whatsappPhone || '+2349074489687'} · {profile?.email || 'info@winnersgroupofcompany.com'}
                       </p>
                     </div>
 
@@ -484,7 +484,7 @@ export default function App() {
                   <div>
                     <p className="text-xs font-medium text-[#FF85A5]">{activeHero.caption}</p>
                     <p className="font-editorial text-xl font-medium">
-                      Godwin Abbey Way (Limit Rd), Benin City
+                      NDDC Road Along Ojemeh Street, Alihame Iwan, Agbor
                     </p>
                   </div>
                   <span className="font-mono text-xs text-[#DEDDEB]">Check-in 14:00 WAT</span>
@@ -832,14 +832,43 @@ export default function App() {
 
       {/* Quiet Editorial Footer */}
       <footer className="border-t border-[#2B276B] bg-[#040037] py-10 text-white">
-        <div className="mx-auto flex max-w-7xl flex-col justify-between gap-6 px-4 sm:px-6 md:flex-row md:items-center lg:px-8">
-          <div>
+        <div className="mx-auto flex max-w-7xl flex-col justify-between gap-6 px-4 sm:px-6 lg:flex-row lg:items-center lg:px-8">
+          <div className="space-y-1.5">
             <p className="font-editorial text-2xl font-semibold text-white">Winners Hotel and Suites</p>
-            <p className="mt-1 text-xs text-[#DEDDEB]">
-              {profile?.address || 'Godwin Abbey Way (Limit Rd), Benin City, Edo State'} · Immediate Reply {profile?.replyPhone || '0905 048 3402'} · WhatsApp {profile?.whatsappPhone || '0905 048 3401'}
+            <p className="text-xs text-[#DEDDEB]">
+              <span className="font-semibold text-[#FF85A5]">Address:</span>{' '}
+              {profile?.address || 'NDDC Road Along Ojemeh Street, Alihame Iwan, Agbor, Delta State, Nigeria'}
             </p>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#DEDDEB]">
+              <span>
+                <span className="font-semibold text-[#FF85A5]">Call Us:</span>{' '}
+                <a href="tel:+2348125957751" className="hover:text-white hover:underline">
+                  {profile?.replyPhone || '+234 812 595 7751'}
+                </a>{' '}
+                ·{' '}
+                <a href="tel:+2349074489687" className="hover:text-white hover:underline">
+                  {profile?.whatsappPhone || '+2349074489687'}
+                </a>
+              </span>
+              <span>
+                <span className="font-semibold text-[#FF85A5]">Email Us:</span>{' '}
+                <a
+                  href={`mailto:${profile?.email || 'info@winnersgroupofcompany.com'}`}
+                  className="hover:text-white hover:underline"
+                >
+                  {profile?.email || 'info@winnersgroupofcompany.com'}
+                </a>{' '}
+                ·{' '}
+                <a
+                  href={`mailto:${profile?.secondaryEmail || 'manager@winnersgroupofcompany.com'}`}
+                  className="hover:text-white hover:underline"
+                >
+                  {profile?.secondaryEmail || 'manager@winnersgroupofcompany.com'}
+                </a>
+              </span>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4 shrink-0">
             <PWAInstallButton variant="dark" />
             <span className="text-xs text-[#C5C2E3]">
               © {new Date().getFullYear()} Winners Hotel and Suites · Winners Group Hospitality
@@ -943,7 +972,7 @@ export default function App() {
           <div className="relative max-h-[90vh] w-full max-w-lg overflow-hidden rounded-2xl border border-[#2B276B] bg-[#040037] p-4 text-white">
             <div className="mb-3 flex items-center justify-between">
               <span className="text-xs font-medium text-[#FF85A5]">
-                Winners Hotel and Suites · Benin City, Edo
+                Winners Hotel and Suites · Agbor, Delta State
               </span>
               <button
                 type="button"

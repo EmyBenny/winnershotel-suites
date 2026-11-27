@@ -85,7 +85,7 @@ export const LoyaltyMobileView: React.FC<LoyaltyMobileViewProps> = ({
     if (result === 'granted') {
       await showDeviceNotification(
         'Winners Hotel and Suites Alerts Active',
-        'You will receive real-time check-in reminders and Benin City seasonal suite offers.',
+        'You will receive real-time check-in reminders and Agbor seasonal room offers.',
         'whs-welcome'
       );
     }

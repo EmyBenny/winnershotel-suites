@@ -49,15 +49,15 @@ export function todayIso(): string {
 
 export function getBeninCityGreeting(): { greeting: string; isEvening: boolean; watClock: string } {
   const now = new Date();
-  // Benin City, Edo is WAT (UTC+1)
+  // Agbor, Delta State is WAT (UTC+1)
   const watHour = (now.getUTCHours() + 1) % 24;
   const watMin = String(now.getUTCMinutes()).padStart(2, '0');
   const watClock = `${String(watHour).padStart(2, '0')}:${watMin} WAT`;
   if (watHour >= 5 && watHour < 12) {
-    return { greeting: 'Good morning from Benin City', isEvening: false, watClock };
+    return { greeting: 'Good morning from Agbor', isEvening: false, watClock };
   }
   if (watHour >= 12 && watHour < 18) {
-    return { greeting: 'Good afternoon from Benin City', isEvening: false, watClock };
+    return { greeting: 'Good afternoon from Agbor', isEvening: false, watClock };
   }
-  return { greeting: 'Good evening from Benin City', isEvening: true, watClock };
+  return { greeting: 'Good evening from Agbor', isEvening: true, watClock };
 }

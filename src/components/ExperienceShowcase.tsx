@@ -7,6 +7,7 @@ import {
   Crown,
   Dumbbell,
   Gamepad2,
+  Mail,
   MapPin,
   PartyPopper,
   PhoneCall,
@@ -68,7 +69,7 @@ const VIDEO_REELS: VideoReelItem[] = [
     label: 'Gold Room Lounge',
     subtitle: 'VIP Evening Lounge & Bar',
     description:
-      'Signature brass and cognac leather VIP lounge pouring aged spirits, craft cocktails, and grilled platters deep into the Benin City evening.',
+      'Signature brass and cognac leather VIP lounge pouring aged spirits, craft cocktails, and grilled platters deep into the Agbor evening.',
     videoUrl: '/videos/joker-gold-lounge.mp4',
     posterUrl: '/src/assets/images/facility_gold_lounge_1795699570355.jpg',
     inquiryCategory: 'Gold Room Lounge VIP',
@@ -331,9 +332,12 @@ export const ExperienceShowcase: React.FC<ExperienceShowcaseProps> = ({
 
   const activeReel = VIDEO_REELS.find((r) => r.id === activeReelId) || VIDEO_REELS[0];
   const activeGallery = LIFESTYLE_GALLERY.find((g) => g.id === activeGalleryId) || LIFESTYLE_GALLERY[0];
-  const replyPhone = profile?.replyPhone || '0905 048 3402';
-  const whatsappPhone = profile?.whatsappPhone || '0905 048 3401';
-  const address = profile?.address || 'Godwin Abbey Way (Limit Rd), Benin City, Edo State';
+  const replyPhone = profile?.replyPhone || '+234 812 595 7751';
+  const whatsappPhone = profile?.whatsappPhone || '+2349074489687';
+  const primaryEmail = profile?.email || 'info@winnersgroupofcompany.com';
+  const secondaryEmail = profile?.secondaryEmail || 'manager@winnersgroupofcompany.com';
+  const address =
+    profile?.address || 'NDDC Road Along Ojemeh Street, Alihame Iwan, Agbor, Delta State, Nigeria';
 
   const jumpToRequest = (category: InquiryCategory) => {
     setSelectedCategory(category);
@@ -766,39 +770,54 @@ export const ExperienceShowcase: React.FC<ExperienceShowcaseProps> = ({
           <div className="flex flex-col justify-between lg:col-span-5">
             <div>
               <p className="text-xs font-semibold text-[#E21E51]">
-                24/7 Hospitality Desk · Benin City
+                24/7 Hospitality Desk · Agbor, Delta State
               </p>
               <h3 className="mt-1.5 font-editorial text-2xl font-semibold text-[#040037] dark:text-white sm:text-3xl">
                 Need Kitchen Takeout, Salon, Boutique, Hall, or Gym Membership?
               </h3>
               <p className="mt-3 text-sm leading-relaxed text-[#514D7C] dark:text-[#DEDDEB]">
-                Send your request below and a team member will reply shortly. Prefer to speak with
-                our front desk right away? Call or WhatsApp directly.
+                Send your request below and a team member will reply shortly. Prefer to reach our
+                front desk directly? Call or email us anytime.
               </p>
             </div>
 
             <div className="mt-6 space-y-3 border-t border-[#DEDDEB] pt-5 text-sm dark:border-[#2B276B]">
-              <a
-                href={`tel:${replyPhone.replace(/\s+/g, '')}`}
-                className="flex items-center justify-between rounded-xl border border-[#DEDDEB] bg-[#F8F9FA] px-4 py-3 text-[#040037] hover:border-[#E21E51] dark:border-[#2B276B] dark:bg-[#040037] dark:text-white transition-colors"
-              >
-                <span className="flex items-center gap-2.5 text-xs font-medium">
-                  <PhoneCall className="h-4 w-4 text-[#E21E51]" />
-                  <span>Immediate Reply Line</span>
-                </span>
-                <span className="font-mono text-sm font-bold text-[#032075] dark:text-[#FF85A5]">
-                  {replyPhone}
-                </span>
-              </a>
+              <div className="rounded-xl border border-[#DEDDEB] bg-[#F8F9FA] px-4 py-3 text-xs text-[#040037] dark:border-[#2B276B] dark:bg-[#040037] dark:text-white">
+                <p className="flex items-center gap-2 font-semibold text-[#E21E51]">
+                  <MapPin className="h-4 w-4 shrink-0" />
+                  <span>Address</span>
+                </p>
+                <p className="mt-1 text-[#514D7C] dark:text-[#DEDDEB]">{address}</p>
+              </div>
 
-              <div className="flex items-center justify-between rounded-xl border border-[#DEDDEB] bg-[#F8F9FA] px-4 py-3 text-xs text-[#514D7C] dark:border-[#2B276B] dark:bg-[#040037] dark:text-[#DEDDEB]">
-                <span className="flex items-center gap-2.5 font-medium">
-                  <MapPin className="h-4 w-4 text-[#E21E51]" />
-                  <span>{address}</span>
-                </span>
-                <span className="font-mono text-[11px] text-[#666699] dark:text-[#C5C2E3]">
-                  WhatsApp {whatsappPhone}
-                </span>
+              <div className="rounded-xl border border-[#DEDDEB] bg-[#F8F9FA] px-4 py-3 text-xs text-[#040037] dark:border-[#2B276B] dark:bg-[#040037] dark:text-white">
+                <p className="flex items-center gap-2 font-semibold text-[#E21E51]">
+                  <PhoneCall className="h-4 w-4 shrink-0" />
+                  <span>Call Us</span>
+                </p>
+                <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 font-mono text-sm font-bold text-[#032075] dark:text-[#FF85A5]">
+                  <a href={`tel:${replyPhone.replace(/\s+/g, '')}`} className="hover:underline">
+                    {replyPhone}
+                  </a>
+                  <a href={`tel:${whatsappPhone.replace(/\s+/g, '')}`} className="hover:underline">
+                    {whatsappPhone}
+                  </a>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-[#DEDDEB] bg-[#F8F9FA] px-4 py-3 text-xs text-[#040037] dark:border-[#2B276B] dark:bg-[#040037] dark:text-white">
+                <p className="flex items-center gap-2 font-semibold text-[#E21E51]">
+                  <Mail className="h-4 w-4 shrink-0" />
+                  <span>Email Us</span>
+                </p>
+                <div className="mt-1.5 flex flex-col gap-1 text-xs font-medium text-[#032075] dark:text-[#DEDDEB]">
+                  <a href={`mailto:${primaryEmail}`} className="hover:text-[#E21E51] hover:underline">
+                    {primaryEmail}
+                  </a>
+                  <a href={`mailto:${secondaryEmail}`} className="hover:text-[#E21E51] hover:underline">
+                    {secondaryEmail}
+                  </a>
+                </div>
               </div>
             </div>
           </div>

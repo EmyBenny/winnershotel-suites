@@ -293,7 +293,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/15 bg-[#040037] px-6 py-4 text-white">
           <div className="min-w-0">
             <p className="text-xs font-medium text-[#FF85A5]">
-              {step === 'confirmed' ? 'Reservation Confirmed' : `${room.tier} Tier · Benin City, Edo`}
+              {step === 'confirmed' ? 'Reservation Confirmed' : `${room.tier} Tier · Agbor, Delta State`}
             </p>
             <h2 className="truncate font-editorial text-2xl font-semibold">{room.name}</h2>
           </div>
@@ -695,7 +695,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                       <div className="rounded-xl border border-[#DEDDEB] bg-white p-5 text-sm text-[#514D7C] dark:border-[#2B276B] dark:bg-[#0D0952] dark:text-[#DEDDEB]">
                         <p className="font-medium text-[#040037] dark:text-[#F8F9FA]">Guaranteed Arrival Hold</p>
                         <p className="mt-1.5">
-                          Your suite will be held under your email and phone until 18:00 WAT on check-in day. Settle via POS, cash, or transfer at the Benin City reception desk.
+                          Your suite will be held under your email and phone until 18:00 WAT on check-in day. Settle via POS, cash, or transfer at the Agbor reception desk.
                         </p>
                       </div>
                     )}
