@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+  BedDouble,
   CheckCircle2,
+  Clock,
   Eye,
   EyeOff,
   KeyRound,
@@ -11,9 +13,12 @@ import {
   Send,
   ShieldCheck,
   Trash2,
+  X,
 } from 'lucide-react';
 import type {
+  BookingQuote,
   EmailLog,
+  PaymentMethod,
   Reservation,
   ReservationStatus,
   RoomCategory,
@@ -21,14 +26,32 @@ import type {
   SeasonalPromotion,
   ServiceInquiry,
 } from '../types/hotel.ts';
-import { formatDateShort, formatMoney, type CurrencyCode } from '../utils/currency.ts';
+import {
+  addDays,
+  diffNights,
+  formatDateShort,
+  formatMoney,
+  todayIso,
+  type CurrencyCode,
+} from '../utils/currency.ts';
 import { fetchJson } from '../utils/api.ts';
+import { useRealtimeEvents } from '../hooks/useRealtimeEvents.ts';
 
 interface AdminDashboardProps {
   currency: CurrencyCode;
   ngnPerUsd: number;
   onRoomsUpdated: (rooms: RoomCategory[]) => void;
   onPromotionsUpdated: (promos: SeasonalPromotion[]) => void;
+}
+
+function formatMonthLabel(ym: string): string {
+  const [y, m] = ym.split('-').map(Number);
+  if (!y || !m) return ym;
+  return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString('en-US', {
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -53,8 +76,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [promotions, setPromotions] = useState<SeasonalPromotion[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | ReservationStatus>('all');
+  const [selectedMonth, setSelectedMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [selectedEmail, setSelectedEmail] = useState<EmailLog | null>(null);
   const [actionBanner, setActionBanner] = useState('');
+
+  // Admin Direct Room Booking Modal State
+  const [showAdminBookModal, setShowAdminBookModal] = useState(false);
+  const [adminBookRoomId, setAdminBookRoomId] = useState('');
+  const [adminBookRoomNumber, setAdminBookRoomNumber] = useState('');
+  const [adminBookCheckIn, setAdminBookCheckIn] = useState(() => addDays(todayIso(), 0));
+  const [adminBookCheckOut, setAdminBookCheckOut] = useState(() => addDays(todayIso(), 1));
+  const [adminBookDaysInput, setAdminBookDaysInput] = useState('1');
+  const [adminBookGuests, setAdminBookGuests] = useState(1);
+  const [adminBookName, setAdminBookName] = useState('');
+  const [adminBookEmail, setAdminBookEmail] = useState('');
+  const [adminBookPhone, setAdminBookPhone] = useState('');
+  const [adminBookPaymentMethod, setAdminBookPaymentMethod] = useState<PaymentMethod>('bank_transfer');
+  const [adminBookPaymentVerified, setAdminBookPaymentVerified] = useState(true);
+  const [adminBookAirportPickup, setAdminBookAirportPickup] = useState(false);
+  const [adminBookNotes, setAdminBookNotes] = useState('');
+  const [adminBookSubmitting, setAdminBookSubmitting] = useState(false);
+  const [adminBookError, setAdminBookError] = useState('');
+  const [adminBookQuote, setAdminBookQuote] = useState<BookingQuote | null>(null);
+  const [adminBookQuoteLoading, setAdminBookQuoteLoading] = useState(false);
+  const [adminRealtimeNonce, setAdminRealtimeNonce] = useState(0);
 
   // Room editing local draft state
   const [roomDrafts, setRoomDrafts] = useState<
@@ -121,6 +166,83 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   }, [token, fetchDashboard]);
 
+  // Real-time synchronization for reservations, transfers, inquiries, room rates, and monthly revenue
+  useRealtimeEvents((msg) => {
+    if (!token) return;
+    if (msg.type === 'reservation:created' || msg.type === 'reservation:updated') {
+      const payload = msg.payload as { reservation?: Reservation; emailLog?: EmailLog | null };
+      if (payload?.reservation) {
+        setReservations((prev) => {
+          const exists = prev.some((r) => r.id === payload.reservation!.id);
+          if (exists) {
+            return prev.map((r) => (r.id === payload.reservation!.id ? payload.reservation! : r));
+          }
+          return [payload.reservation!, ...prev];
+        });
+      }
+      if (payload?.emailLog) {
+        setEmailLogs((prev) => {
+          if (prev.some((e) => e.id === payload.emailLog!.id)) return prev;
+          return [payload.emailLog!, ...prev];
+        });
+      }
+      setAdminRealtimeNonce((n) => n + 1);
+    } else if (msg.type === 'inquiry:created' || msg.type === 'inquiry:updated') {
+      const payload = msg.payload as { inquiry?: ServiceInquiry };
+      if (payload?.inquiry) {
+        setInquiries((prev) => {
+          const exists = prev.some((i) => i.id === payload.inquiry!.id);
+          if (exists) {
+            return prev.map((i) => (i.id === payload.inquiry!.id ? payload.inquiry! : i));
+          }
+          return [payload.inquiry!, ...prev];
+        });
+      }
+    } else if (msg.type === 'availability:updated') {
+      const payload = msg.payload as { rooms?: RoomCategory[] };
+      if (payload?.rooms) {
+        setRooms(payload.rooms);
+      }
+      setAdminRealtimeNonce((n) => n + 1);
+    } else if (msg.type === 'promotion:published') {
+      fetchDashboard(token);
+    } else if (msg.type === 'sync:refresh') {
+      fetchDashboard(token);
+      setAdminRealtimeNonce((n) => n + 1);
+    }
+  });
+
+  // Live server quote calculation for Admin "Book Room for Guest" modal
+  useEffect(() => {
+    if (!showAdminBookModal || !adminBookRoomId || !adminBookCheckIn || !adminBookCheckOut) {
+      return;
+    }
+    let cancelled = false;
+    setAdminBookQuoteLoading(true);
+    fetchJson<{ quote: BookingQuote }>('/api/bookings/quote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        roomId: adminBookRoomId,
+        checkIn: adminBookCheckIn,
+        checkOut: adminBookCheckOut,
+        guestEmail: adminBookEmail.trim() || undefined,
+      }),
+    })
+      .then(({ data }) => {
+        if (!cancelled) setAdminBookQuote(data.quote);
+      })
+      .catch(() => {
+        if (!cancelled) setAdminBookQuote(null);
+      })
+      .finally(() => {
+        if (!cancelled) setAdminBookQuoteLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [showAdminBookModal, adminBookRoomId, adminBookCheckIn, adminBookCheckOut, adminBookEmail, adminRealtimeNonce]);
+
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!authStatus) return;
@@ -166,6 +288,111 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setActionBanner(`Reservation ${data.reservation.bookingRef} marked as ${status.replace('_', ' ')}.`);
     } catch (err) {
       setActionBanner(err instanceof Error ? err.message : 'Failed to update reservation.');
+    }
+  };
+
+  const handleConfirmTransferPayment = async (id: string) => {
+    if (!token) return;
+    setActionBanner('');
+    try {
+      const { data } = await fetchJson<{
+        reservation: Reservation;
+        emailLog?: EmailLog;
+        rooms?: RoomCategory[];
+      }>(`/api/admin/reservations/${id}/confirm-payment`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      setReservations((prev) => prev.map((r) => (r.id === id ? data.reservation : r)));
+      if (data.emailLog) {
+        setEmailLogs((prev) => [data.emailLog!, ...prev]);
+      }
+      if (data.rooms) {
+        setRooms(data.rooms);
+        onRoomsUpdated(data.rooms);
+      }
+      setActionBanner(
+        `Bank transfer confirmed for ${data.reservation.bookingRef}. ${data.reservation.roomName} is now completely booked and confirmation email sent.`
+      );
+    } catch (err) {
+      setActionBanner(err instanceof Error ? err.message : 'Failed to confirm bank transfer.');
+    }
+  };
+
+  const openAdminBookModal = (preselectedRoomId?: string) => {
+    setAdminBookRoomId(preselectedRoomId || rooms[0]?.id || '');
+    setAdminBookRoomNumber('');
+    setAdminBookGuests(1);
+    setAdminBookDaysInput(String(diffNights(adminBookCheckIn, adminBookCheckOut)));
+    setAdminBookError('');
+    setShowAdminBookModal(true);
+  };
+
+  const handleAdminDaysChange = (nextDays: number) => {
+    const clamped = Math.max(1, Math.min(60, Math.round(nextDays)));
+    if (adminBookCheckIn) {
+      setAdminBookCheckOut(addDays(adminBookCheckIn, clamped));
+    }
+    setAdminBookDaysInput(String(clamped));
+  };
+
+  const handleCreateAdminBooking = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
+    setAdminBookError('');
+    setAdminBookSubmitting(true);
+    try {
+      const { data } = await fetchJson<{
+        reservation: Reservation;
+        emailLog?: EmailLog | null;
+        rooms: RoomCategory[];
+      }>('/api/admin/reservations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          roomId: adminBookRoomId,
+          roomNumber: adminBookRoomNumber,
+          checkIn: adminBookCheckIn,
+          checkOut: adminBookCheckOut,
+          guestsCount: adminBookGuests,
+          guestName: adminBookName,
+          guestEmail: adminBookEmail,
+          guestPhone: adminBookPhone,
+          paymentMethod: adminBookPaymentMethod,
+          paymentVerified: adminBookPaymentVerified,
+          airportPickup: adminBookAirportPickup,
+          specialRequests: adminBookNotes,
+        }),
+      });
+      setReservations((prev) => [data.reservation, ...prev]);
+      if (data.emailLog) {
+        setEmailLogs((prev) => [data.emailLog!, ...prev]);
+      }
+      if (data.rooms) {
+        setRooms(data.rooms);
+        onRoomsUpdated(data.rooms);
+      }
+      setShowAdminBookModal(false);
+      setAdminBookName('');
+      setAdminBookEmail('');
+      setAdminBookPhone('');
+      setAdminBookRoomNumber('');
+      setAdminBookNotes('');
+      setTab('reservations');
+      setActionBanner(
+        data.reservation.status === 'pending_payment'
+          ? `Logged transfer booking ${data.reservation.bookingRef} (${data.reservation.roomName}) awaiting payment confirmation.`
+          : `Booked ${data.reservation.roomName}${data.reservation.roomNumber ? ` (${data.reservation.roomNumber})` : ''} for ${data.reservation.guestName} · Ref ${data.reservation.bookingRef}.`
+      );
+    } catch (err) {
+      setAdminBookError(err instanceof Error ? err.message : 'Unable to create booking.');
+    } finally {
+      setAdminBookSubmitting(false);
     }
   };
 
@@ -330,9 +557,36 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const totalUnits = rooms.reduce((acc, r) => acc + r.totalUnits, 0);
   const availableNow = rooms.reduce((acc, r) => acc + (r.availableUnits ?? 0), 0);
   const occupancyPct = totalUnits > 0 ? Math.round(((totalUnits - availableNow) / totalUnits) * 100) : 0;
-  const confirmedRevenue = reservations
-    .filter((r) => r.status !== 'cancelled')
-    .reduce((acc, r) => acc + r.totalPaidNgn, 0);
+
+  const isRevenueBooking = (r: Reservation) =>
+    r.status !== 'cancelled' &&
+    r.status !== 'pending_payment' &&
+    r.paymentStatus !== 'pending_verification';
+
+  const monthlyVerifiedBookings = reservations.filter(
+    (r) => isRevenueBooking(r) && r.checkIn.slice(0, 7) === selectedMonth
+  );
+  const monthlyGrossRevenue = monthlyVerifiedBookings.reduce(
+    (acc, r) => acc + r.totalPaidNgn,
+    0
+  );
+
+  // Build sorted monthly breakdown from existing verified bookings
+  const monthlyBreakdownMap = new Map<string, { totalNgn: number; count: number }>();
+  for (const r of reservations) {
+    if (!isRevenueBooking(r)) continue;
+    const ym = r.checkIn.slice(0, 7);
+    const prev = monthlyBreakdownMap.get(ym) || { totalNgn: 0, count: 0 };
+    monthlyBreakdownMap.set(ym, { totalNgn: prev.totalNgn + r.totalPaidNgn, count: prev.count + 1 });
+  }
+  const monthlyBreakdown = Array.from(monthlyBreakdownMap.entries()).sort((a, b) =>
+    b[0].localeCompare(a[0])
+  );
+
+  const pendingTransfersCount = reservations.filter(
+    (r) => r.status === 'pending_payment' || r.paymentStatus === 'pending_verification'
+  ).length;
+
   const activeCount = reservations.filter(
     (r) => r.status === 'confirmed' || r.status === 'checked_in'
   ).length;
@@ -345,9 +599,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       r.bookingRef.toLowerCase().includes(q) ||
       r.guestName.toLowerCase().includes(q) ||
       r.guestEmail.toLowerCase().includes(q) ||
-      r.roomName.toLowerCase().includes(q);
+      r.roomName.toLowerCase().includes(q) ||
+      (r.roomNumber || '').toLowerCase().includes(q) ||
+      r.paymentRef.toLowerCase().includes(q);
     return matchesStatus && matchesQuery;
   });
+
+  const selectedBookRoom = rooms.find((r) => r.id === adminBookRoomId) || rooms[0];
+  const adminBookNights = diffNights(adminBookCheckIn, adminBookCheckOut);
+  const adminBookSubtotal = selectedBookRoom ? selectedBookRoom.nightlyRateNgn * adminBookNights : 0;
+  const adminBookVat = Math.round(adminBookSubtotal * 0.075);
+  const adminBookTotal = adminBookSubtotal + adminBookVat;
 
   return (
     <section className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
@@ -359,14 +621,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             Reservations &amp; Availability Console
           </h2>
         </div>
-        <button
-          type="button"
-          onClick={() => setToken(null)}
-          className="inline-flex items-center gap-2 rounded-lg border border-[#DEDDEB] bg-white px-3.5 py-2 text-xs font-medium text-[#040037] hover:bg-[#EFEFF5] dark:border-[#2B276B] dark:bg-[#0D0952] dark:text-[#F8F9FA] dark:hover:bg-[#140F66]"
-        >
-          <LogOut className="h-3.5 w-3.5" />
-          <span>Sign Out</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => openAdminBookModal()}
+            className="inline-flex items-center gap-2 rounded-lg bg-[#040037] px-4 py-2 text-xs font-semibold text-white hover:bg-[#032075] border border-white/20 transition-colors"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span>Book Room for Guest</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setToken(null)}
+            className="inline-flex items-center gap-2 rounded-lg border border-[#DEDDEB] bg-white px-3.5 py-2 text-xs font-medium text-[#040037] hover:bg-[#EFEFF5] dark:border-[#2B276B] dark:bg-[#0D0952] dark:text-[#F8F9FA] dark:hover:bg-[#140F66]"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+            <span>Sign Out</span>
+          </button>
+        </div>
       </div>
 
       {/* 4-Column KPI Strip */}
@@ -379,23 +651,100 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </p>
         </div>
         <div className="rounded-xl border border-[#DEDDEB] bg-white p-5 dark:border-[#2B276B] dark:bg-[#0D0952]">
-          <p className="text-xs text-[#514D7C] dark:text-[#C5C2E3]">Gross Booking Revenue</p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-medium text-[#514D7C] dark:text-[#C5C2E3]">Monthly Gross Revenue</p>
+            <input
+              type="month"
+              value={selectedMonth}
+              onChange={(e) => e.target.value && setSelectedMonth(e.target.value)}
+              aria-label="Select month for gross booking revenue"
+              className="rounded border border-[#DEDDEB] bg-[#EFEFF5] px-2 py-0.5 font-mono text-[11px] font-medium text-[#040037] focus:border-[#E21E51] focus:outline-none dark:border-[#2B276B] dark:bg-[#08043D] dark:text-[#F8F9FA]"
+            />
+          </div>
           <p className="mt-2 tabular-nums text-3xl font-bold text-[#032075] dark:text-[#FF85A5]">
-            {formatMoney(confirmedRevenue, currency, ngnPerUsd)}
+            {formatMoney(monthlyGrossRevenue, currency, ngnPerUsd)}
           </p>
-          <p className="mt-1 text-xs text-[#514D7C] dark:text-[#C5C2E3]">Verified non-cancelled stays</p>
+          <p className="mt-1 text-xs text-[#514D7C] dark:text-[#C5C2E3]">
+            {formatMonthLabel(selectedMonth)} · {monthlyVerifiedBookings.length} confirmed{' '}
+            {monthlyVerifiedBookings.length === 1 ? 'stay' : 'stays'}
+            {monthlyVerifiedBookings.length > 0 && (
+              <>
+                {' '}
+                (Paid:{' '}
+                {formatMoney(
+                  monthlyVerifiedBookings
+                    .filter((r) => r.paymentStatus === 'paid')
+                    .reduce((acc, r) => acc + r.totalPaidNgn, 0),
+                  currency,
+                  ngnPerUsd
+                )}
+                )
+              </>
+            )}
+          </p>
         </div>
         <div className="rounded-xl border border-[#DEDDEB] bg-white p-5 dark:border-[#2B276B] dark:bg-[#0D0952]">
           <p className="text-xs text-[#514D7C] dark:text-[#C5C2E3]">Active &amp; Upcoming Stays</p>
           <p className="mt-2 tabular-nums text-3xl font-bold text-[#040037] dark:text-[#F8F9FA]">{activeCount}</p>
-          <p className="mt-1 text-xs text-[#514D7C] dark:text-[#C5C2E3]">Confirmed + checked-in guests</p>
+          <p className="mt-1 text-xs text-[#514D7C] dark:text-[#C5C2E3]">
+            {pendingTransfersCount > 0
+              ? `${pendingTransfersCount} awaiting transfer confirmation`
+              : 'Confirmed + checked-in guests'}
+          </p>
         </div>
         <div className="rounded-xl border border-[#DEDDEB] bg-white p-5 dark:border-[#2B276B] dark:bg-[#0D0952]">
           <p className="text-xs text-[#514D7C] dark:text-[#C5C2E3]">Automated Emails Sent</p>
           <p className="mt-2 tabular-nums text-3xl font-bold text-[#040037] dark:text-[#F8F9FA]">{emailLogs.length}</p>
-          <p className="mt-1 text-xs text-[#514D7C] dark:text-[#C5C2E3]">100% transaction confirmation rate</p>
+          <p className="mt-1 text-xs text-[#514D7C] dark:text-[#C5C2E3]">Issued on confirmed stays</p>
         </div>
       </div>
+
+      {/* Monthly Revenue History Strip */}
+      {monthlyBreakdown.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#DEDDEB] bg-white px-4 py-3 text-xs dark:border-[#2B276B] dark:bg-[#0D0952]">
+          <span className="font-semibold text-[#040037] dark:text-[#F8F9FA]">
+            Monthly Gross Booking Revenue Breakdown:
+          </span>
+          <div className="flex flex-wrap gap-2">
+            {monthlyBreakdown.map(([ym, info]) => (
+              <button
+                key={ym}
+                type="button"
+                onClick={() => setSelectedMonth(ym)}
+                className={`rounded-lg border px-3 py-1 font-mono transition-colors ${
+                  selectedMonth === ym
+                    ? 'border-[#E21E51] bg-[#E21E51] text-white font-semibold'
+                    : 'border-[#DEDDEB] bg-[#EFEFF5] text-[#040037] hover:border-[#E21E51] dark:border-[#2B276B] dark:bg-[#08043D] dark:text-[#DEDDEB]'
+                }`}
+              >
+                {formatMonthLabel(ym)}: {formatMoney(info.totalNgn, currency, ngnPerUsd)} ({info.count})
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {pendingTransfersCount > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-500/40 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-950 dark:border-amber-400/35 dark:bg-amber-950/50 dark:text-amber-100">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <span>
+              <strong>{pendingTransfersCount}</strong> bank transfer{' '}
+              {pendingTransfersCount === 1 ? 'booking requires' : 'bookings require'} your payment confirmation before the room is completely booked.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setTab('reservations');
+              setStatusFilter('pending_payment');
+            }}
+            className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 transition-colors"
+          >
+            Review Pending Transfers
+          </button>
+        </div>
+      )}
 
       {actionBanner && (
         <div className="flex items-center gap-2 rounded-xl border border-emerald-700/20 bg-emerald-50 px-4 py-3 text-xs font-medium text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-200">
@@ -434,19 +783,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {tab === 'reservations' && (
         <div className="rounded-2xl border border-[#DEDDEB] bg-white dark:border-[#2B276B] dark:bg-[#0D0952]">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#DEDDEB] p-4 dark:border-[#2B276B]">
-            <div className="relative w-full max-w-xs">
-              <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-[#514D7C] dark:text-[#C5C2E3]" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search guest, ref, or suite..."
-                className="w-full rounded-lg border border-[#DEDDEB] bg-[#EFEFF5] py-2 pl-9 pr-3 text-xs text-[#040037] focus:border-[#E21E51] focus:outline-none dark:border-[#2B276B] dark:bg-[#08043D] dark:text-[#F8F9FA]"
-              />
+            <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+              <div className="relative w-full sm:w-64">
+                <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-[#514D7C] dark:text-[#C5C2E3]" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search guest, ref, or room..."
+                  className="w-full rounded-lg border border-[#DEDDEB] bg-[#EFEFF5] py-2 pl-9 pr-3 text-xs text-[#040037] focus:border-[#E21E51] focus:outline-none dark:border-[#2B276B] dark:bg-[#08043D] dark:text-[#F8F9FA]"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => openAdminBookModal()}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[#E21E51] px-3 py-2 text-xs font-semibold text-white hover:bg-[#C81645] whitespace-nowrap transition-colors"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>New Room Booking</span>
+              </button>
             </div>
 
             <div className="flex flex-wrap gap-1 rounded-lg bg-[#EFEFF5] p-1 dark:bg-[#08043D]">
-              {(['all', 'confirmed', 'checked_in', 'checked_out', 'cancelled'] as const).map((s) => (
+              {(
+                ['all', 'pending_payment', 'confirmed', 'checked_in', 'checked_out', 'cancelled'] as const
+              ).map((s) => (
                 <button
                   key={s}
                   type="button"
@@ -457,7 +818,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       : 'text-[#514D7C] dark:text-[#C5C2E3]'
                   }`}
                 >
-                  {s.replace('_', ' ')}
+                  {s === 'pending_payment'
+                    ? `Pending Transfer (${pendingTransfersCount})`
+                    : s.replace('_', ' ')}
                 </button>
               ))}
             </div>
@@ -469,86 +832,114 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <tr>
                   <th className="px-4 py-3 font-medium">Reference</th>
                   <th className="px-4 py-3 font-medium">Guest</th>
-                  <th className="px-4 py-3 font-medium">Suite</th>
+                  <th className="px-4 py-3 font-medium">Room</th>
                   <th className="px-4 py-3 font-medium">Check-In / Out</th>
+                  <th className="px-4 py-3 font-medium">Payment</th>
                   <th className="px-4 py-3 text-right font-medium">Amount</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 text-right font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#DEDDEB] dark:divide-[#2B276B]">
-                {filteredReservations.map((res) => (
-                  <tr key={res.id} className="hover:bg-[#F8F9FA] dark:hover:bg-[#140F66]/60">
-                    <td className="px-4 py-3 font-mono font-semibold text-[#040037] dark:text-[#F8F9FA]">
-                      {res.bookingRef}
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-[#040037] dark:text-[#F8F9FA]">{res.guestName}</p>
-                      <p className="text-[#514D7C] dark:text-[#C5C2E3]">{res.guestEmail}</p>
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-[#040037] dark:text-[#F8F9FA]">{res.roomName}</p>
-                      <p className="text-[#514D7C] dark:text-[#C5C2E3]">
-                        {res.airportPickup ? 'Chauffeur Pickup' : 'Standard Arrival'}
-                      </p>
-                    </td>
-                    <td className="px-4 py-3 tabular-nums text-[#514D7C] dark:text-[#DEDDEB]">
-                      {formatDateShort(res.checkIn)} → {formatDateShort(res.checkOut)} ({res.nights}n)
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums font-semibold text-[#032075] dark:text-[#F8F9FA]">
-                      {formatMoney(res.totalPaidNgn, currency, ngnPerUsd)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`font-medium capitalize ${
-                          res.status === 'checked_in'
-                            ? 'text-emerald-700 dark:text-emerald-400'
-                            : res.status === 'cancelled'
-                            ? 'text-red-700 dark:text-red-400'
-                            : res.status === 'confirmed'
-                            ? 'text-[#E21E51] dark:text-[#FF85A5]'
-                            : 'text-[#514D7C] dark:text-[#C5C2E3]'
-                        }`}
-                      >
-                        {res.status.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="inline-flex items-center gap-2">
-                        {res.status === 'confirmed' && (
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateReservationStatus(res.id, 'checked_in')}
-                            className="rounded-md bg-[#E21E51] px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-[#C81645]"
-                          >
-                            Check In
-                          </button>
-                        )}
-                        {res.status === 'checked_in' && (
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateReservationStatus(res.id, 'checked_out')}
-                            className="rounded-md border border-[#DEDDEB] bg-[#EFEFF5] px-2.5 py-1 text-[11px] font-medium text-[#040037] dark:border-[#2B276B] dark:bg-[#08043D] dark:text-[#F8F9FA]"
-                          >
-                            Check Out
-                          </button>
-                        )}
-                        {(res.status === 'confirmed' || res.status === 'checked_in') && (
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateReservationStatus(res.id, 'cancelled')}
-                            className="rounded-md border border-red-700/20 px-2.5 py-1 text-[11px] font-medium text-red-700 hover:bg-red-50 dark:text-red-400"
-                          >
-                            Cancel
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {filteredReservations.map((res) => {
+                  const needsTransferApproval =
+                    res.status === 'pending_payment' || res.paymentStatus === 'pending_verification';
+                  return (
+                    <tr key={res.id} className="hover:bg-[#F8F9FA] dark:hover:bg-[#140F66]/60">
+                      <td className="px-4 py-3 font-mono font-semibold text-[#040037] dark:text-[#F8F9FA]">
+                        {res.bookingRef}
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-[#040037] dark:text-[#F8F9FA]">{res.guestName}</p>
+                        <p className="text-[#514D7C] dark:text-[#C5C2E3]">{res.guestEmail}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="font-medium text-[#040037] dark:text-[#F8F9FA]">
+                          {res.roomName}
+                          {res.roomNumber ? ` · ${res.roomNumber}` : ''}
+                        </p>
+                        <p className="text-[#514D7C] dark:text-[#C5C2E3]">
+                          {res.airportPickup ? 'Chauffeur Pickup' : 'Standard Arrival'}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3 tabular-nums text-[#514D7C] dark:text-[#DEDDEB]">
+                        {formatDateShort(res.checkIn)} → {formatDateShort(res.checkOut)} ({res.nights}n)
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="font-medium capitalize text-[#040037] dark:text-[#F8F9FA]">
+                          {res.paymentMethod.replace(/_/g, ' ')}
+                        </p>
+                        <p className="font-mono text-[11px] text-[#514D7C] dark:text-[#C5C2E3]">
+                          {res.paymentRef}
+                        </p>
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums font-semibold text-[#032075] dark:text-[#F8F9FA]">
+                        {formatMoney(res.totalPaidNgn, currency, ngnPerUsd)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`font-medium capitalize ${
+                            needsTransferApproval
+                              ? 'text-amber-700 dark:text-amber-300 font-semibold'
+                              : res.status === 'checked_in'
+                              ? 'text-emerald-700 dark:text-emerald-400'
+                              : res.status === 'cancelled'
+                              ? 'text-red-700 dark:text-red-400'
+                              : res.status === 'confirmed'
+                              ? 'text-[#E21E51] dark:text-[#FF85A5]'
+                              : 'text-[#514D7C] dark:text-[#C5C2E3]'
+                          }`}
+                        >
+                          {needsTransferApproval ? 'Pending Transfer' : res.status.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="inline-flex items-center gap-2">
+                          {needsTransferApproval && res.status !== 'cancelled' && (
+                            <button
+                              type="button"
+                              onClick={() => handleConfirmTransferPayment(res.id)}
+                              className="rounded-md bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-emerald-700 whitespace-nowrap"
+                            >
+                              Confirm Payment
+                            </button>
+                          )}
+                          {res.status === 'confirmed' && (
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateReservationStatus(res.id, 'checked_in')}
+                              className="rounded-md bg-[#E21E51] px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-[#C81645]"
+                            >
+                              Check In
+                            </button>
+                          )}
+                          {res.status === 'checked_in' && (
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateReservationStatus(res.id, 'checked_out')}
+                              className="rounded-md border border-[#DEDDEB] bg-[#EFEFF5] px-2.5 py-1 text-[11px] font-medium text-[#040037] dark:border-[#2B276B] dark:bg-[#08043D] dark:text-[#F8F9FA]"
+                            >
+                              Check Out
+                            </button>
+                          )}
+                          {(needsTransferApproval || res.status === 'confirmed' || res.status === 'checked_in') &&
+                            res.status !== 'cancelled' && (
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateReservationStatus(res.id, 'cancelled')}
+                                className="rounded-md border border-red-700/20 px-2.5 py-1 text-[11px] font-medium text-red-700 hover:bg-red-50 dark:text-red-400"
+                              >
+                                Cancel
+                              </button>
+                            )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
                 {filteredReservations.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-10 text-center text-sm text-[#514D7C] dark:text-[#C5C2E3]">
+                    <td colSpan={8} className="px-4 py-10 text-center text-sm text-[#514D7C] dark:text-[#C5C2E3]">
                       No reservations match your current filter.
                     </td>
                   </tr>
@@ -679,8 +1070,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     Nightly Rate (₦ NGN)
                     <input
                       type="number"
-                      min={10000}
-                      step={5000}
+                      min={5000}
+                      step={500}
                       value={draft.nightlyRateNgn}
                       onChange={(e) =>
                         setRoomDrafts((prev) => ({
@@ -746,13 +1137,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </label>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => handleSaveRoom(room.id)}
-                  className="mt-5 w-full rounded-lg bg-[#E21E51] py-2.5 text-xs font-semibold text-white hover:bg-[#C81645] transition-colors"
-                >
-                  Save &amp; Sync Live
-                </button>
+                <div className="mt-5 grid grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => handleSaveRoom(room.id)}
+                    className="rounded-lg bg-[#E21E51] py-2.5 text-xs font-semibold text-white hover:bg-[#C81645] transition-colors"
+                  >
+                    Save &amp; Sync
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openAdminBookModal(room.id)}
+                    className="rounded-lg border border-[#DEDDEB] bg-[#EFEFF5] py-2.5 text-xs font-semibold text-[#040037] hover:bg-[#DEDDEB] dark:border-[#2B276B] dark:bg-[#08043D] dark:text-[#F8F9FA] dark:hover:bg-[#140F66] transition-colors"
+                  >
+                    Book This Room
+                  </button>
+                </div>
               </div>
             );
           })}
@@ -925,6 +1325,313 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 Select any automated confirmation email on the left to inspect its full receipt payload.
               </p>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Admin Room Booking Modal (Choose Room Guest Wants to Stay In) */}
+      {showAdminBookModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-[#040037]/75 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Admin Book Room for Guest"
+        >
+          <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl border border-[#DEDDEB] bg-white text-[#040037] shadow-2xl dark:border-[#2B276B] dark:bg-[#0D0952] dark:text-[#F8F9FA] sm:rounded-2xl">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/15 bg-[#040037] px-6 py-4 text-white">
+              <div>
+                <p className="text-xs font-medium text-[#FF85A5]">Front Desk Reservation</p>
+                <h3 className="font-editorial text-2xl font-semibold">Book Room &amp; Assign Stay</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAdminBookModal(false)}
+                aria-label="Close admin booking modal"
+                className="flex h-9 w-9 items-center justify-center rounded-lg text-white/75 hover:bg-[#E21E51] hover:text-white transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateAdminBooking} className="space-y-4 p-6">
+              {adminBookError && (
+                <div className="rounded-xl border border-red-700/25 bg-red-50 px-4 py-3 text-xs text-red-900 dark:bg-red-950/45 dark:text-red-200">
+                  {adminBookError}
+                </div>
+              )}
+
+              <div className="grid gap-4 sm:grid-cols-3">
+                <label className="block text-xs font-medium text-[#514D7C] dark:text-[#DEDDEB] sm:col-span-2">
+                  Choose Room Guest Wants to Stay In
+                  <div className="relative mt-1.5">
+                    <BedDouble className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-[#E21E51]" />
+                    <select
+                      value={adminBookRoomId}
+                      onChange={(e) => {
+                        setAdminBookRoomId(e.target.value);
+                        setAdminBookGuests(1);
+                      }}
+                      required
+                      className="w-full rounded-lg border border-[#DEDDEB] bg-[#EFEFF5] py-2.5 pl-9 pr-3 text-sm font-medium text-[#040037] focus:border-[#E21E51] focus:outline-none dark:border-[#2B276B] dark:bg-[#08043D] dark:text-[#F8F9FA]"
+                    >
+                      {rooms.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.name} — {formatMoney(r.nightlyRateNgn, currency, ngnPerUsd)} / night ({r.availableUnits ?? r.totalUnits} free)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </label>
+
+                <label className="block text-xs font-medium text-[#514D7C] dark:text-[#DEDDEB]">
+                  Room # / Unit (Optional)
+                  <input
+                    type="text"
+                    value={adminBookRoomNumber}
+                    onChange={(e) => setAdminBookRoomNumber(e.target.value)}
+                    placeholder="e.g. Room 104"
+                    className="mt-1.5 w-full rounded-lg border border-[#DEDDEB] bg-[#EFEFF5] px-3 py-2.5 text-sm text-[#040037] focus:border-[#E21E51] focus:outline-none dark:border-[#2B276B] dark:bg-[#08043D] dark:text-[#F8F9FA]"
+                  />
+                </label>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <label className="block text-xs font-medium text-[#514D7C] dark:text-[#DEDDEB]">
+                  Check-In
+                  <input
+                    type="date"
+                    value={adminBookCheckIn}
+                    onChange={(e) => {
+                      const nextIn = e.target.value;
+                      setAdminBookCheckIn(nextIn);
+                      if (nextIn) {
+                        setAdminBookCheckOut(addDays(nextIn, adminBookNights));
+                      }
+                    }}
+                    required
+                    className="mt-1.5 w-full rounded-lg border border-[#DEDDEB] bg-[#EFEFF5] px-3 py-2.5 text-sm text-[#040037] focus:border-[#E21E51] focus:outline-none dark:border-[#2B276B] dark:bg-[#08043D] dark:text-[#F8F9FA]"
+                  />
+                </label>
+
+                <div className="block text-xs font-medium text-[#514D7C] dark:text-[#DEDDEB]">
+                  <label htmlFor="admin-booking-days-input">Number of Days</label>
+                  <div className="mt-1.5 flex h-[42px] items-center overflow-hidden rounded-lg border border-[#DEDDEB] bg-[#EFEFF5] dark:border-[#2B276B] dark:bg-[#08043D]">
+                    <button
+                      type="button"
+                      onClick={() => handleAdminDaysChange(adminBookNights - 1)}
+                      disabled={adminBookNights <= 1}
+                      aria-label="Decrease booking days"
+                      className="flex h-full w-9 shrink-0 items-center justify-center border-r border-[#DEDDEB] text-base font-semibold text-[#040037] hover:bg-[#DEDDEB] disabled:opacity-40 dark:border-[#2B276B] dark:text-[#F8F9FA] dark:hover:bg-[#140F66]"
+                    >
+                      −
+                    </button>
+                    <input
+                      id="admin-booking-days-input"
+                      type="number"
+                      min={1}
+                      max={60}
+                      value={adminBookDaysInput}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        setAdminBookDaysInput(raw);
+                        const parsed = parseInt(raw, 10);
+                        if (!Number.isNaN(parsed) && parsed >= 1 && adminBookCheckIn) {
+                          setAdminBookCheckOut(addDays(adminBookCheckIn, Math.min(60, parsed)));
+                        }
+                      }}
+                      onBlur={() => setAdminBookDaysInput(String(adminBookNights))}
+                      required
+                      className="w-full bg-transparent px-2 text-center font-mono text-sm font-semibold text-[#040037] focus:outline-none dark:text-[#F8F9FA]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleAdminDaysChange(adminBookNights + 1)}
+                      disabled={adminBookNights >= 60}
+                      aria-label="Increase booking days"
+                      className="flex h-full w-9 shrink-0 items-center justify-center border-l border-[#DEDDEB] text-base font-semibold text-[#040037] hover:bg-[#DEDDEB] disabled:opacity-40 dark:border-[#2B276B] dark:text-[#F8F9FA] dark:hover:bg-[#140F66]"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                <label className="block text-xs font-medium text-[#514D7C] dark:text-[#DEDDEB]">
+                  Check-Out
+                  <input
+                    type="date"
+                    value={adminBookCheckOut}
+                    min={adminBookCheckIn ? addDays(adminBookCheckIn, 1) : undefined}
+                    onChange={(e) => {
+                      const nextOut = e.target.value;
+                      setAdminBookCheckOut(nextOut);
+                      setAdminBookDaysInput(String(diffNights(adminBookCheckIn, nextOut)));
+                    }}
+                    required
+                    className="mt-1.5 w-full rounded-lg border border-[#DEDDEB] bg-[#EFEFF5] px-3 py-2.5 text-sm text-[#040037] focus:border-[#E21E51] focus:outline-none dark:border-[#2B276B] dark:bg-[#08043D] dark:text-[#F8F9FA]"
+                  />
+                </label>
+
+                <label className="block text-xs font-medium text-[#514D7C] dark:text-[#DEDDEB]">
+                  Guests
+                  <select
+                    value={adminBookGuests}
+                    onChange={(e) => setAdminBookGuests(Number(e.target.value))}
+                    className="mt-1.5 w-full rounded-lg border border-[#DEDDEB] bg-[#EFEFF5] px-3 py-2.5 text-sm text-[#040037] focus:border-[#E21E51] focus:outline-none dark:border-[#2B276B] dark:bg-[#08043D] dark:text-[#F8F9FA]"
+                  >
+                    {Array.from({ length: selectedBookRoom?.maxGuests || 2 }, (_, i) => i + 1).map((n) => (
+                      <option key={n} value={n}>
+                        {n} {n === 1 ? 'Guest' : 'Guests'}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-3">
+                <label className="block text-xs font-medium text-[#514D7C] dark:text-[#DEDDEB]">
+                  Guest Full Name
+                  <input
+                    type="text"
+                    value={adminBookName}
+                    onChange={(e) => setAdminBookName(e.target.value)}
+                    placeholder="e.g. Chinedu Okafor"
+                    required
+                    className="mt-1.5 w-full rounded-lg border border-[#DEDDEB] bg-[#EFEFF5] px-3 py-2.5 text-sm text-[#040037] focus:border-[#E21E51] focus:outline-none dark:border-[#2B276B] dark:bg-[#08043D] dark:text-[#F8F9FA]"
+                  />
+                </label>
+                <label className="block text-xs font-medium text-[#514D7C] dark:text-[#DEDDEB]">
+                  Guest Email
+                  <input
+                    type="email"
+                    value={adminBookEmail}
+                    onChange={(e) => setAdminBookEmail(e.target.value)}
+                    placeholder="guest@domain.com"
+                    required
+                    className="mt-1.5 w-full rounded-lg border border-[#DEDDEB] bg-[#EFEFF5] px-3 py-2.5 text-sm text-[#040037] focus:border-[#E21E51] focus:outline-none dark:border-[#2B276B] dark:bg-[#08043D] dark:text-[#F8F9FA]"
+                  />
+                </label>
+                <label className="block text-xs font-medium text-[#514D7C] dark:text-[#DEDDEB]">
+                  Phone / WhatsApp
+                  <input
+                    type="tel"
+                    value={adminBookPhone}
+                    onChange={(e) => setAdminBookPhone(e.target.value)}
+                    placeholder="+234 803 000 0000"
+                    required
+                    className="mt-1.5 w-full rounded-lg border border-[#DEDDEB] bg-[#EFEFF5] px-3 py-2.5 text-sm text-[#040037] focus:border-[#E21E51] focus:outline-none dark:border-[#2B276B] dark:bg-[#08043D] dark:text-[#F8F9FA]"
+                  />
+                </label>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block text-xs font-medium text-[#514D7C] dark:text-[#DEDDEB]">
+                  Payment Method
+                  <select
+                    value={adminBookPaymentMethod}
+                    onChange={(e) => setAdminBookPaymentMethod(e.target.value as PaymentMethod)}
+                    className="mt-1.5 w-full rounded-lg border border-[#DEDDEB] bg-[#EFEFF5] px-3 py-2.5 text-sm text-[#040037] focus:border-[#E21E51] focus:outline-none dark:border-[#2B276B] dark:bg-[#08043D] dark:text-[#F8F9FA]"
+                  >
+                    <option value="bank_transfer">Bank Transfer</option>
+                    <option value="pay_at_hotel">Pay at Hotel</option>
+                  </select>
+                </label>
+
+                {adminBookPaymentMethod === 'bank_transfer' && (
+                  <label className="block text-xs font-medium text-[#514D7C] dark:text-[#DEDDEB]">
+                    Transfer Confirmation Status
+                    <select
+                      value={adminBookPaymentVerified ? 'verified' : 'pending'}
+                      onChange={(e) => setAdminBookPaymentVerified(e.target.value === 'verified')}
+                      className="mt-1.5 w-full rounded-lg border border-[#DEDDEB] bg-[#EFEFF5] px-3 py-2.5 text-sm text-[#040037] focus:border-[#E21E51] focus:outline-none dark:border-[#2B276B] dark:bg-[#08043D] dark:text-[#F8F9FA]"
+                    >
+                      <option value="verified">Transfer Received &amp; Confirmed</option>
+                      <option value="pending">Pending Transfer Verification</option>
+                    </select>
+                  </label>
+                )}
+              </div>
+
+              <label className="flex cursor-pointer items-center gap-2.5 text-xs text-[#040037] dark:text-[#F8F9FA]">
+                <input
+                  type="checkbox"
+                  checked={adminBookAirportPickup}
+                  onChange={(e) => setAdminBookAirportPickup(e.target.checked)}
+                  className="h-4 w-4 accent-[#E21E51]"
+                />
+                <span>Include Benin Airport chauffeur pickup</span>
+              </label>
+
+              <label className="block text-xs font-medium text-[#514D7C] dark:text-[#DEDDEB]">
+                Front Desk Notes (Optional)
+                <input
+                  type="text"
+                  value={adminBookNotes}
+                  onChange={(e) => setAdminBookNotes(e.target.value)}
+                  placeholder="Early arrival, extra pillows, VIP preference..."
+                  className="mt-1.5 w-full rounded-lg border border-[#DEDDEB] bg-[#EFEFF5] px-3 py-2 text-sm text-[#040037] focus:border-[#E21E51] focus:outline-none dark:border-[#2B276B] dark:bg-[#08043D] dark:text-[#F8F9FA]"
+                />
+              </label>
+
+              {selectedBookRoom && adminBookNights > 0 && (
+                <div className="space-y-1.5 rounded-xl border border-[#DEDDEB] bg-[#F8F9FA] px-4 py-3 text-xs dark:border-[#2B276B] dark:bg-[#08043D]">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <span className="text-[#514D7C] dark:text-[#C5C2E3]">
+                      {adminBookQuote?.roomName || selectedBookRoom.name} · {adminBookQuote?.nights || adminBookNights}{' '}
+                      {(adminBookQuote?.nights || adminBookNights) === 1 ? 'day / night' : 'days / nights'} + 7.5% VAT
+                    </span>
+                    <span className="tabular-nums text-base font-bold text-[#032075] dark:text-[#FF85A5]">
+                      {adminBookQuoteLoading
+                        ? 'Calculating...'
+                        : formatMoney(adminBookQuote?.totalNgn ?? adminBookTotal, currency, ngnPerUsd)}
+                    </span>
+                  </div>
+                  {adminBookQuote && (
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#514D7C] dark:text-[#C5C2E3]">
+                      <span>
+                        Subtotal {formatMoney(adminBookQuote.subtotalNgn, currency, ngnPerUsd)} · VAT{' '}
+                        {formatMoney(adminBookQuote.serviceFeeNgn, currency, ngnPerUsd)}
+                      </span>
+                      <span
+                        className={`font-semibold ${
+                          adminBookQuote.availableUnits > 0
+                            ? 'text-emerald-700 dark:text-emerald-400'
+                            : 'text-red-700 dark:text-red-400'
+                        }`}
+                      >
+                        {adminBookQuote.availableUnits > 0
+                          ? `${adminBookQuote.availableUnits} suites available for these dates`
+                          : 'No suites available for selected dates'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-3 border-t border-[#DEDDEB] pt-4 dark:border-[#2B276B]">
+                <button
+                  type="button"
+                  onClick={() => setShowAdminBookModal(false)}
+                  className="rounded-lg border border-[#DEDDEB] px-4 py-2.5 text-xs font-medium text-[#040037] dark:border-[#2B276B] dark:text-[#F8F9FA]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={
+                    adminBookSubmitting ||
+                    adminBookNights <= 0 ||
+                    (adminBookQuote !== null && adminBookQuote.availableUnits <= 0)
+                  }
+                  className="rounded-lg bg-[#E21E51] px-5 py-2.5 text-xs font-semibold text-white hover:bg-[#C81645] disabled:opacity-50 transition-colors"
+                >
+                  {adminBookSubmitting
+                    ? 'Saving Booking...'
+                    : adminBookPaymentMethod === 'bank_transfer' && !adminBookPaymentVerified
+                    ? 'Log Pending Transfer Booking'
+                    : 'Confirm & Book Room'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

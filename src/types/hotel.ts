@@ -2,9 +2,14 @@ export type RoomTier = 'Standard' | 'Deluxe' | 'Executive' | 'Suite' | 'Presiden
 
 export type RoomStatus = 'available' | 'maintenance' | 'sold_out';
 
-export type ReservationStatus = 'confirmed' | 'checked_in' | 'checked_out' | 'cancelled';
+export type ReservationStatus =
+  | 'pending_payment'
+  | 'confirmed'
+  | 'checked_in'
+  | 'checked_out'
+  | 'cancelled';
 
-export type PaymentMethod = 'card' | 'bank_transfer' | 'pay_at_hotel';
+export type PaymentMethod = 'bank_transfer' | 'pay_at_hotel';
 
 export type LoyaltyTier = 'Spade Silver' | 'Gold Crown' | 'Obsidian VIP';
 
@@ -69,6 +74,7 @@ export interface Reservation {
   bookingRef: string;
   roomId: string;
   roomName: string;
+  roomNumber?: string;
   guestName: string;
   guestEmail: string;
   guestPhone: string;
@@ -86,9 +92,7 @@ export interface Reservation {
   totalPaidNgn: number;
   paymentMethod: PaymentMethod;
   paymentRef: string;
-  cardLast4?: string;
-  cardBrand?: string;
-  paymentStatus: 'paid' | 'guaranteed_hold' | 'refunded';
+  paymentStatus: 'pending_verification' | 'paid' | 'guaranteed_hold' | 'refunded';
   status: ReservationStatus;
   pointsEarned: number;
   pointsRedeemed: number;

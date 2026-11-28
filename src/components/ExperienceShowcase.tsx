@@ -204,7 +204,7 @@ const DESTINATION_CARDS: DestinationHighlight[] = [
     hours: '10:00 – 01:00 Daily',
     description:
       'Designed around our promise to keep you busy, safe, and entertained — unwind over Snooker boards, Table Soccer, and PS4 & PS5 gaming stations.',
-    imageUrl: '/assets/winners/hotel-showcase-1.jpg',
+    imageUrl: '/src/assets/images/facility_gaming_lounge_1795878832174.jpg',
     icon: <Gamepad2 className="h-4 w-4 text-[#E21E51]" />,
     actionLabel: 'Reserve Gaming Session',
     inquiryCategory: 'Gaming Lounge (Snooker & PS5)',
@@ -228,7 +228,7 @@ const DESTINATION_CARDS: DestinationHighlight[] = [
     hours: '08:00 – 20:00 Daily',
     description:
       'Reserve our poolside cabanas, architectural facade, Gold Room Lounge interiors, and chandelier foyers for professional bridal and commercial photo shoots.',
-    imageUrl: '/src/assets/images/facility_photoshoot_studio_1795699571078.jpg',
+    imageUrl: '/assets/winners/hotel-exterior.jpg',
     icon: <Camera className="h-4 w-4 text-[#E21E51]" />,
     actionLabel: 'Book Photo Shoot Slot',
     inquiryCategory: 'Photo Shoot Session',

@@ -35,7 +35,28 @@ async function startServer() {
   });
 
   wss.on('connection', (ws) => {
+    (ws as WebSocket & { isAlive?: boolean }).isAlive = true;
+    ws.on('pong', () => {
+      (ws as WebSocket & { isAlive?: boolean }).isAlive = true;
+    });
     ws.send(JSON.stringify({ type: 'connection:ready', timestamp: new Date().toISOString() }));
+  });
+
+  const wsHeartbeat = setInterval(() => {
+    if (!wss) return;
+    for (const client of wss.clients) {
+      const tracked = client as WebSocket & { isAlive?: boolean };
+      if (tracked.isAlive === false) {
+        client.terminate();
+        continue;
+      }
+      tracked.isAlive = false;
+      client.ping();
+    }
+  }, 25000);
+
+  wss.on('close', () => {
+    clearInterval(wsHeartbeat);
   });
 
   if (process.env.NODE_ENV !== 'production') {
@@ -61,7 +82,7 @@ async function startServer() {
   }
 
   server.listen(PORT, '0.0.0.0', () => {
-    console.log(`Joker Hotel & Suites server listening on http://localhost:${PORT}`);
+    console.log(`Winners Hotel and Suites server listening on http://localhost:${PORT}`);
   });
 }
 

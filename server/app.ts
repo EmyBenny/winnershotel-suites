@@ -66,8 +66,6 @@ interface PaymentIntentRecord {
   amountNgn: number;
   paymentMethod: PaymentMethod;
   paymentRef: string;
-  cardLast4?: string;
-  cardBrand?: string;
   virtualAccount?: {
     bankName: string;
     accountNumber: string;
@@ -93,8 +91,6 @@ function signPaymentIntent(record: PaymentIntentRecord): string {
       amountNgn: record.amountNgn,
       paymentMethod: record.paymentMethod,
       paymentRef: record.paymentRef,
-      cardLast4: record.cardLast4,
-      cardBrand: record.cardBrand,
       createdAt: record.createdAt,
     })
   ).toString('base64url');
@@ -132,30 +128,6 @@ function verifyPaymentIntentToken(token: string): PaymentIntentRecord | null {
   } catch {
     return null;
   }
-}
-
-function passesLuhn(digits: string): boolean {
-  let sum = 0;
-  let shouldDouble = false;
-  for (let i = digits.length - 1; i >= 0; i--) {
-    let d = Number(digits[i]);
-    if (Number.isNaN(d)) return false;
-    if (shouldDouble) {
-      d *= 2;
-      if (d > 9) d -= 9;
-    }
-    sum += d;
-    shouldDouble = !shouldDouble;
-  }
-  return digits.length >= 13 && digits.length <= 19 && sum % 10 === 0;
-}
-
-function detectCardBrand(digits: string): string {
-  if (digits.startsWith('4')) return 'Visa';
-  if (/^5[1-5]/.test(digits) || /^2[2-7]/.test(digits)) return 'Mastercard';
-  if (/^506|^650/.test(digits)) return 'Verve';
-  if (/^3[47]/.test(digits)) return 'Amex';
-  return 'Card';
 }
 
 function signAdminToken(): string {
@@ -258,7 +230,24 @@ export interface ApiAppOptions {
 
 export function createApiApp(options: ApiAppOptions = {}): express.Express {
   const app = express();
-  const broadcastEvent = options.broadcastEvent || (() => {});
+  const wsBroadcast = options.broadcastEvent || (() => {});
+  const sseClients = new Set<express.Response>();
+  let syncVersion = Date.now();
+
+  const broadcastEvent = (type: string, payload: unknown): void => {
+    syncVersion += 1;
+    wsBroadcast(type, payload);
+    if (sseClients.size > 0) {
+      const data = JSON.stringify({ type, payload, version: syncVersion, timestamp: new Date().toISOString() });
+      for (const client of sseClients) {
+        try {
+          client.write(`data: ${data}\n\n`);
+        } catch {
+          sseClients.delete(client);
+        }
+      }
+    }
+  };
 
   app.use(express.json({ limit: '1mb' }));
 
@@ -283,8 +272,36 @@ export function createApiApp(options: ApiAppOptions = {}): express.Express {
     next();
   });
 
+  app.get('/api/events', (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders?.();
+
+    res.write(`data: ${JSON.stringify({ type: 'connection:ready', version: syncVersion, timestamp: new Date().toISOString() })}\n\n`);
+    sseClients.add(res);
+
+    const keepalive = setInterval(() => {
+      try {
+        res.write(`: keepalive ${Date.now()}\n\n`);
+      } catch {
+        clearInterval(keepalive);
+        sseClients.delete(res);
+      }
+    }, 20000);
+
+    req.on('close', () => {
+      clearInterval(keepalive);
+      sseClients.delete(res);
+    });
+  });
+
+  app.get('/api/hotel/sync-version', (_req, res) => {
+    res.json({ version: syncVersion });
+  });
+
   app.get('/api/health', (_req, res) => {
-    res.json({ status: 'ok', service: 'winners-hotel-and-suites' });
+    res.json({ status: 'ok', service: 'winners-hotel-and-suites', version: syncVersion });
   });
 
   app.get('/api/hotel/bootstrap', (req, res) => {
@@ -317,7 +334,7 @@ export function createApiApp(options: ApiAppOptions = {}): express.Express {
       return {
         date: dayIso,
         availableSuites,
-        lowestRateNgn: Number.isFinite(lowestRateNgn) ? lowestRateNgn : db.rooms[0]?.nightlyRateNgn || 45000,
+        lowestRateNgn: Number.isFinite(lowestRateNgn) ? lowestRateNgn : db.rooms[0]?.nightlyRateNgn || 20500,
       };
     });
 
@@ -367,9 +384,6 @@ export function createApiApp(options: ApiAppOptions = {}): express.Express {
         redeemPoints,
         promoCode,
         paymentMethod,
-        cardNumber,
-        cardExpiry,
-        cardCvc,
       } = req.body as {
         roomId: string;
         checkIn: string;
@@ -378,10 +392,12 @@ export function createApiApp(options: ApiAppOptions = {}): express.Express {
         redeemPoints?: number;
         promoCode?: string;
         paymentMethod: PaymentMethod;
-        cardNumber?: string;
-        cardExpiry?: string;
-        cardCvc?: string;
       };
+
+      if (paymentMethod !== 'bank_transfer' && paymentMethod !== 'pay_at_hotel') {
+        res.status(400).json({ error: 'Only Bank Transfer or Pay at Hotel is accepted.' });
+        return;
+      }
 
       if (!guestEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim())) {
         res.status(400).json({ error: 'A valid guest email address is required for confirmation.' });
@@ -405,40 +421,13 @@ export function createApiApp(options: ApiAppOptions = {}): express.Express {
       const rawId = `pi_${crypto.randomBytes(10).toString('hex')}`;
       const paymentRef = `WHS-${Date.now().toString().slice(-6)}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
 
-      let cardLast4: string | undefined;
-      let cardBrand: string | undefined;
       let virtualAccount: PaymentIntentRecord['virtualAccount'];
 
-      if (paymentMethod === 'card') {
-        const cleanDigits = (cardNumber || '').replace(/\D/g, '');
-        if (!passesLuhn(cleanDigits)) {
-          res.status(400).json({ error: 'Please enter a valid card number.' });
-          return;
-        }
-        const expMatch = (cardExpiry || '').trim().match(/^(\d{2})\s*\/\s*(\d{2})$/);
-        if (!expMatch) {
-          res.status(400).json({ error: 'Card expiry must be in MM/YY format.' });
-          return;
-        }
-        const expMonth = Number(expMatch[1]);
-        const expYear = 2000 + Number(expMatch[2]);
-        const now = new Date();
-        if (expMonth < 1 || expMonth > 12 || expYear < now.getUTCFullYear() || (expYear === now.getUTCFullYear() && expMonth < now.getUTCMonth() + 1)) {
-          res.status(400).json({ error: 'Card has expired. Please use an active card.' });
-          return;
-        }
-        const cleanCvc = (cardCvc || '').replace(/\D/g, '');
-        if (cleanCvc.length < 3 || cleanCvc.length > 4) {
-          res.status(400).json({ error: 'Security CVC must be 3 or 4 digits.' });
-          return;
-        }
-        cardLast4 = cleanDigits.slice(-4);
-        cardBrand = detectCardBrand(cleanDigits);
-      } else if (paymentMethod === 'bank_transfer') {
+      if (paymentMethod === 'bank_transfer') {
         virtualAccount = {
           bankName: 'Providus Bank · Winners Hospitality Escrow',
           accountNumber: `99${Math.floor(10000000 + Math.random() * 89999999)}`,
-          accountName: 'Winners Hotel and Suites Benin',
+          accountName: 'Winners Hotel and Suites',
         };
       }
 
@@ -453,8 +442,6 @@ export function createApiApp(options: ApiAppOptions = {}): express.Express {
         amountNgn: quote.totalNgn,
         paymentMethod,
         paymentRef,
-        cardLast4,
-        cardBrand,
         virtualAccount,
         verified: true,
         createdAt: Date.now(),
@@ -468,8 +455,6 @@ export function createApiApp(options: ApiAppOptions = {}): express.Express {
         intentId: signedIntentId,
         paymentRef,
         amountNgn: quote.totalNgn,
-        cardLast4,
-        cardBrand,
         virtualAccount,
       });
     } catch (err) {
@@ -502,6 +487,11 @@ export function createApiApp(options: ApiAppOptions = {}): express.Express {
         return;
       }
 
+      if (intent.paymentMethod !== 'bank_transfer' && intent.paymentMethod !== 'pay_at_hotel') {
+        res.status(400).json({ error: 'Unsupported payment method.' });
+        return;
+      }
+
       if (!guestName?.trim() || !guestPhone?.trim()) {
         res.status(400).json({ error: 'Guest full name and phone number are required.' });
         return;
@@ -525,6 +515,7 @@ export function createApiApp(options: ApiAppOptions = {}): express.Express {
       const clampedGuests = Math.max(1, Math.min(room.maxGuests, Number(guestsCount) || 1));
       const nowIso = new Date().toISOString();
       const bookingRef = `WHS-${new Date().toISOString().slice(2, 7).replace('-', '')}-${crypto.randomInt(1000, 9999)}`;
+      const isPendingTransfer = intent.paymentMethod === 'bank_transfer';
 
       const reservation: Reservation = {
         id: `res-${crypto.randomUUID().slice(0, 8)}`,
@@ -548,13 +539,11 @@ export function createApiApp(options: ApiAppOptions = {}): express.Express {
         totalPaidNgn: quote.totalNgn,
         paymentMethod: intent.paymentMethod,
         paymentRef: intent.paymentRef,
-        cardLast4: intent.cardLast4,
-        cardBrand: intent.cardBrand,
-        paymentStatus: intent.paymentMethod === 'pay_at_hotel' ? 'guaranteed_hold' : 'paid',
-        status: 'confirmed',
+        paymentStatus: isPendingTransfer ? 'pending_verification' : 'guaranteed_hold',
+        status: isPendingTransfer ? 'pending_payment' : 'confirmed',
         pointsEarned: quote.pointsToEarn,
         pointsRedeemed: quote.pointsToRedeem,
-        emailConfirmedAt: nowIso,
+        emailConfirmedAt: isPendingTransfer ? '' : nowIso,
         createdAt: nowIso,
         updatedAt: nowIso,
       };
@@ -566,7 +555,6 @@ export function createApiApp(options: ApiAppOptions = {}): express.Express {
       // Persist reservation
       db.reservations.unshift(reservation);
 
-      // Update or create Loyalty Account
       let loyalty = db.loyaltyAccounts.find(
         (a) => a.guestEmail.toLowerCase() === intent.guestEmail.toLowerCase()
       );
@@ -583,6 +571,31 @@ export function createApiApp(options: ApiAppOptions = {}): express.Express {
         db.loyaltyAccounts.push(loyalty);
       } else {
         loyalty.guestName = guestName.trim();
+      }
+
+      if (isPendingTransfer) {
+        const pendingNotif: PushNotificationItem = {
+          id: `notif-${crypto.randomUUID().slice(0, 8)}`,
+          title: `Transfer Submitted · ${bookingRef}`,
+          body: `Bank transfer (${intent.paymentRef}) for ${room.name} (${intent.checkIn} to ${intent.checkOut}) is awaiting admin confirmation before booking completes.`,
+          category: 'reservation',
+          bookingRef,
+          createdAt: nowIso,
+        };
+        db.notifications.unshift(pendingNotif);
+        saveDb(db);
+
+        broadcastEvent('reservation:created', { reservation });
+        broadcastEvent('notification:push', pendingNotif);
+
+        res.status(201).json({
+          reservation,
+          emailLog: null,
+          loyalty,
+          notification: pendingNotif,
+          pendingTransferVerification: true,
+        });
+        return;
       }
 
       if (quote.pointsToRedeem > 0) {
@@ -629,7 +642,8 @@ export function createApiApp(options: ApiAppOptions = {}): express.Express {
         availableUnits: getAvailableUnitsForDates(db, r),
       }));
 
-      broadcastEvent('reservation:created', { reservation, emailLog });
+      broadcastEvent('reservation:created', { reservation, emailLog, loyalty });
+      broadcastEvent('loyalty:updated', { loyalty });
       broadcastEvent('availability:updated', { rooms: updatedRooms });
       broadcastEvent('notification:push', notification);
 
@@ -638,6 +652,7 @@ export function createApiApp(options: ApiAppOptions = {}): express.Express {
         emailLog,
         loyalty,
         notification,
+        pendingTransferVerification: false,
       });
     } catch (err) {
       res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to confirm reservation.' });
@@ -865,7 +880,273 @@ export function createApiApp(options: ApiAppOptions = {}): express.Express {
     }
     target.status = status;
     saveDb(db);
+    broadcastEvent('inquiry:updated', { inquiry: target });
     res.json({ inquiry: target });
+  });
+
+  app.post('/api/admin/reservations', requireAdmin, async (req, res) => {
+    try {
+      const db = loadDb();
+      const {
+        roomId,
+        roomNumber,
+        checkIn,
+        checkOut,
+        guestsCount,
+        guestName,
+        guestEmail,
+        guestPhone,
+        paymentMethod,
+        paymentVerified,
+        airportPickup,
+        specialRequests,
+      } = req.body as {
+        roomId: string;
+        roomNumber?: string;
+        checkIn: string;
+        checkOut: string;
+        guestsCount?: number;
+        guestName: string;
+        guestEmail: string;
+        guestPhone: string;
+        paymentMethod?: PaymentMethod;
+        paymentVerified?: boolean;
+        airportPickup?: boolean;
+        specialRequests?: string;
+      };
+
+      const method: PaymentMethod =
+        paymentMethod === 'pay_at_hotel' ? 'pay_at_hotel' : 'bank_transfer';
+
+      if (!guestName?.trim() || !guestPhone?.trim()) {
+        res.status(400).json({ error: 'Guest full name and phone number are required.' });
+        return;
+      }
+      if (!guestEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim())) {
+        res.status(400).json({ error: 'A valid guest email address is required.' });
+        return;
+      }
+
+      const quote = calculateQuote(db, {
+        roomId,
+        checkIn,
+        checkOut,
+        guestEmail: guestEmail.trim().toLowerCase(),
+      });
+
+      if (quote.availableUnits <= 0) {
+        res.status(409).json({ error: 'No available units left for this room on the selected dates.' });
+        return;
+      }
+
+      const room = db.rooms.find((r) => r.id === roomId)!;
+      const clampedGuests = Math.max(1, Math.min(room.maxGuests, Number(guestsCount) || 1));
+      const nowIso = new Date().toISOString();
+      const bookingRef = `WHS-${new Date().toISOString().slice(2, 7).replace('-', '')}-${crypto.randomInt(1000, 9999)}`;
+      const paymentRef = `ADM-${Date.now().toString().slice(-6)}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
+      const isPendingTransfer = method === 'bank_transfer' && !paymentVerified;
+
+      const reservation: Reservation = {
+        id: `res-${crypto.randomUUID().slice(0, 8)}`,
+        bookingRef,
+        roomId: room.id,
+        roomName: room.name,
+        roomNumber: roomNumber?.trim() ? roomNumber.trim().slice(0, 40) : undefined,
+        guestName: guestName.trim(),
+        guestEmail: guestEmail.trim().toLowerCase(),
+        guestPhone: guestPhone.trim(),
+        checkIn,
+        checkOut,
+        nights: quote.nights,
+        guestsCount: clampedGuests,
+        specialRequests: (specialRequests || '').trim(),
+        airportPickup: Boolean(airportPickup),
+        subtotalNgn: quote.subtotalNgn,
+        serviceFeeNgn: quote.serviceFeeNgn,
+        promoDiscountNgn: 0,
+        loyaltyDiscountNgn: 0,
+        totalPaidNgn: quote.totalNgn,
+        paymentMethod: method,
+        paymentRef,
+        paymentStatus: isPendingTransfer
+          ? 'pending_verification'
+          : method === 'pay_at_hotel'
+          ? 'guaranteed_hold'
+          : 'paid',
+        status: isPendingTransfer ? 'pending_payment' : 'confirmed',
+        pointsEarned: quote.pointsToEarn,
+        pointsRedeemed: 0,
+        emailConfirmedAt: isPendingTransfer ? '' : nowIso,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      };
+
+      db.reservations.unshift(reservation);
+
+      let emailLog = null;
+      if (!isPendingTransfer) {
+        let loyalty = db.loyaltyAccounts.find(
+          (a) => a.guestEmail.toLowerCase() === reservation.guestEmail
+        );
+        if (!loyalty) {
+          loyalty = {
+            memberId: `WHS-RC-${crypto.randomInt(1000, 9999)}`,
+            guestEmail: reservation.guestEmail,
+            guestName: reservation.guestName,
+            points: 0,
+            lifetimePoints: 0,
+            tier: 'Spade Silver',
+            history: [],
+          };
+          db.loyaltyAccounts.push(loyalty);
+        }
+        loyalty.points += quote.pointsToEarn;
+        loyalty.lifetimePoints += quote.pointsToEarn;
+        loyalty.tier = computeLoyaltyTier(loyalty.lifetimePoints);
+        loyalty.history.unshift({
+          id: `loy-${crypto.randomUUID().slice(0, 6)}`,
+          date: nowIso,
+          description: `Stay Points Earned · ${room.name}`,
+          pointsDelta: quote.pointsToEarn,
+          bookingRef,
+        });
+
+        emailLog = await dispatchConfirmationEmail(reservation, db.profile);
+        db.emailLogs.unshift(emailLog);
+      }
+
+      const notification: PushNotificationItem = {
+        id: `notif-${crypto.randomUUID().slice(0, 8)}`,
+        title: isPendingTransfer
+          ? `Transfer Pending · ${bookingRef}`
+          : `Booking Confirmed · ${bookingRef}`,
+        body: isPendingTransfer
+          ? `${room.name} (${checkIn} to ${checkOut}) logged awaiting transfer confirmation.`
+          : `${room.name} booked for ${reservation.guestName} (${checkIn} to ${checkOut}).`,
+        category: 'reservation',
+        bookingRef,
+        createdAt: nowIso,
+      };
+      db.notifications.unshift(notification);
+      saveDb(db);
+
+      const rooms = db.rooms.map((r) => ({
+        ...r,
+        availableUnits: getAvailableUnitsForDates(db, r),
+      }));
+      broadcastEvent('reservation:created', { reservation, emailLog });
+      broadcastEvent('availability:updated', { rooms });
+      broadcastEvent('notification:push', notification);
+
+      res.status(201).json({ reservation, emailLog, rooms });
+    } catch (err) {
+      res.status(400).json({ error: err instanceof Error ? err.message : 'Unable to create booking.' });
+    }
+  });
+
+  app.post('/api/admin/reservations/:id/confirm-payment', requireAdmin, async (req, res) => {
+    try {
+      const db = loadDb();
+      const target = db.reservations.find((r) => r.id === req.params.id);
+      if (!target) {
+        res.status(404).json({ error: 'Reservation not found.' });
+        return;
+      }
+      if (target.status === 'cancelled') {
+        res.status(400).json({ error: 'Cannot confirm payment on a cancelled reservation.' });
+        return;
+      }
+      if (target.status !== 'pending_payment' && target.paymentStatus !== 'pending_verification') {
+        res.status(400).json({ error: 'This booking payment has already been confirmed.' });
+        return;
+      }
+
+      const room = db.rooms.find((r) => r.id === target.roomId);
+      if (!room) {
+        res.status(404).json({ error: 'Associated room category not found.' });
+        return;
+      }
+
+      const available = getAvailableUnitsForDates(db, room, target.checkIn, target.checkOut);
+      if (available <= 0) {
+        res.status(409).json({
+          error: `No available units left for ${room.name} between ${target.checkIn} and ${target.checkOut}.`,
+        });
+        return;
+      }
+
+      const nowIso = new Date().toISOString();
+      target.paymentStatus = 'paid';
+      target.status = 'confirmed';
+      target.emailConfirmedAt = nowIso;
+      target.updatedAt = nowIso;
+
+      let loyalty = db.loyaltyAccounts.find(
+        (a) => a.guestEmail.toLowerCase() === target.guestEmail.toLowerCase()
+      );
+      if (!loyalty) {
+        loyalty = {
+          memberId: `WHS-RC-${crypto.randomInt(1000, 9999)}`,
+          guestEmail: target.guestEmail,
+          guestName: target.guestName,
+          points: 0,
+          lifetimePoints: 0,
+          tier: 'Spade Silver',
+          history: [],
+        };
+        db.loyaltyAccounts.push(loyalty);
+      }
+
+      if (target.pointsRedeemed > 0) {
+        loyalty.points = Math.max(0, loyalty.points - target.pointsRedeemed);
+        loyalty.history.unshift({
+          id: `loy-${crypto.randomUUID().slice(0, 6)}`,
+          date: nowIso,
+          description: `Points Redeemed · ${room.name}`,
+          pointsDelta: -target.pointsRedeemed,
+          bookingRef: target.bookingRef,
+        });
+      }
+
+      loyalty.points += target.pointsEarned;
+      loyalty.lifetimePoints += target.pointsEarned;
+      loyalty.tier = computeLoyaltyTier(loyalty.lifetimePoints);
+      loyalty.history.unshift({
+        id: `loy-${crypto.randomUUID().slice(0, 6)}`,
+        date: nowIso,
+        description: `Stay Points Earned · ${room.name}`,
+        pointsDelta: target.pointsEarned,
+        bookingRef: target.bookingRef,
+      });
+
+      const emailLog = await dispatchConfirmationEmail(target, db.profile);
+      db.emailLogs.unshift(emailLog);
+
+      const notification: PushNotificationItem = {
+        id: `notif-${crypto.randomUUID().slice(0, 8)}`,
+        title: `Transfer Confirmed · ${target.bookingRef}`,
+        body: `Payment verified for ${target.guestName}. ${room.name} (${target.checkIn} to ${target.checkOut}) is now completely booked.`,
+        category: 'reservation',
+        bookingRef: target.bookingRef,
+        createdAt: nowIso,
+      };
+      db.notifications.unshift(notification);
+
+      saveDb(db);
+
+      const rooms = db.rooms.map((r) => ({
+        ...r,
+        availableUnits: getAvailableUnitsForDates(db, r),
+      }));
+      broadcastEvent('reservation:updated', { reservation: target, emailLog, loyalty });
+      broadcastEvent('loyalty:updated', { loyalty });
+      broadcastEvent('availability:updated', { rooms });
+      broadcastEvent('notification:push', notification);
+
+      res.json({ reservation: target, emailLog, rooms });
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : 'Unable to confirm transfer.' });
+    }
   });
 
   app.patch('/api/admin/reservations/:id', requireAdmin, (req, res) => {
@@ -876,8 +1157,15 @@ export function createApiApp(options: ApiAppOptions = {}): express.Express {
       return;
     }
     const status = req.body?.status as ReservationStatus | undefined;
-    if (!status || !['confirmed', 'checked_in', 'checked_out', 'cancelled'].includes(status)) {
+    if (
+      !status ||
+      !['pending_payment', 'confirmed', 'checked_in', 'checked_out', 'cancelled'].includes(status)
+    ) {
       res.status(400).json({ error: 'Invalid reservation status.' });
+      return;
+    }
+    if (target.paymentStatus === 'pending_verification' && (status === 'confirmed' || status === 'checked_in')) {
+      res.status(400).json({ error: 'Please confirm the guest bank transfer payment first before completing this booking.' });
       return;
     }
     target.status = status;
@@ -911,7 +1199,7 @@ export function createApiApp(options: ApiAppOptions = {}): express.Express {
       status?: RoomStatus;
     };
 
-    if (typeof nightlyRateNgn === 'number' && nightlyRateNgn >= 10000) {
+    if (typeof nightlyRateNgn === 'number' && nightlyRateNgn >= 5000) {
       room.nightlyRateNgn = Math.round(nightlyRateNgn);
     }
     if (typeof totalUnits === 'number' && totalUnits >= 1 && totalUnits <= 50) {

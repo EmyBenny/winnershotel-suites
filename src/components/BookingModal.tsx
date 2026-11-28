@@ -4,11 +4,10 @@ import {
   Building2,
   Calendar,
   CheckCircle2,
-  CreditCard,
+  Clock,
   Download,
   Lock,
   Mail,
-  ShieldCheck,
   X,
 } from 'lucide-react';
 import type {
@@ -20,11 +19,19 @@ import type {
   RoomCategory,
   SeasonalPromotion,
 } from '../types/hotel.ts';
-import { formatDateShort, formatMoney, type CurrencyCode } from '../utils/currency.ts';
+import {
+  addDays,
+  diffNights,
+  formatDateShort,
+  formatMoney,
+  type CurrencyCode,
+} from '../utils/currency.ts';
 import { fetchJson } from '../utils/api.ts';
+import { useRealtimeEvents } from '../hooks/useRealtimeEvents.ts';
 
 interface BookingModalProps {
   room: RoomCategory | null;
+  allRooms?: RoomCategory[];
   initialCheckIn: string;
   initialCheckOut: string;
   initialPromoCode?: string;
@@ -35,13 +42,15 @@ interface BookingModalProps {
   onClose: () => void;
   onBookingCompleted: (result: {
     reservation: Reservation;
-    emailLog: EmailLog;
+    emailLog: EmailLog | null;
     loyalty: LoyaltyAccount;
+    pendingTransferVerification?: boolean;
   }) => void;
 }
 
 export const BookingModal: React.FC<BookingModalProps> = ({
   room,
+  allRooms,
   initialCheckIn,
   initialCheckOut,
   initialPromoCode = '',
@@ -52,9 +61,15 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   onClose,
   onBookingCompleted,
 }) => {
-  const [step, setStep] = useState<'details' | 'payment' | 'confirmed'>('details');
+  const [selectedRoomId, setSelectedRoomId] = useState<string>(room?.id || '');
+  const activeRoom =
+    (allRooms && allRooms.find((r) => r.id === selectedRoomId)) || room;
+
+  const [step, setStep] = useState<'details' | 'payment' | 'pending_verification' | 'confirmed'>('details');
   const [checkIn, setCheckIn] = useState(initialCheckIn);
   const [checkOut, setCheckOut] = useState(initialCheckOut);
+  const stayDays = diffNights(checkIn, checkOut);
+  const [daysInput, setDaysInput] = useState(String(stayDays));
   const [guestsCount, setGuestsCount] = useState(1);
   const [guestName, setGuestName] = useState('');
   const [guestEmail, setGuestEmail] = useState(initialGuestEmail);
@@ -67,13 +82,11 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   const [quote, setQuote] = useState<BookingQuote | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
+  const [realtimeNonce, setRealtimeNonce] = useState(0);
   const [error, setError] = useState('');
 
-  // Payment fields
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvc, setCardCvc] = useState('');
+  // Payment fields (Bank Transfer & Pay at Hotel only)
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('bank_transfer');
   const [processing, setProcessing] = useState(false);
 
   // Virtual account for bank transfer confirmation step
@@ -84,11 +97,12 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     virtualAccount: { bankName: string; accountNumber: string; accountName: string };
   } | null>(null);
 
-  // Confirmed state
+  // Confirmed / Pending Admin Confirmation state
   const [confirmedData, setConfirmedData] = useState<{
     reservation: Reservation;
-    emailLog: EmailLog;
+    emailLog: EmailLog | null;
     loyalty: LoyaltyAccount;
+    pendingTransferVerification?: boolean;
   } | null>(null);
   const [showEmailPreview, setShowEmailPreview] = useState(true);
 
@@ -96,6 +110,24 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     setCheckIn(initialCheckIn);
     setCheckOut(initialCheckOut);
   }, [initialCheckIn, initialCheckOut]);
+
+  useEffect(() => {
+    setDaysInput(String(stayDays));
+  }, [stayDays]);
+
+  const handleDaysChange = (nextDays: number) => {
+    const clamped = Math.max(1, Math.min(60, Math.round(nextDays)));
+    if (checkIn) {
+      setCheckOut(addDays(checkIn, clamped));
+    }
+    setDaysInput(String(clamped));
+  };
+
+  useEffect(() => {
+    if (room?.id) {
+      setSelectedRoomId(room.id);
+    }
+  }, [room?.id]);
 
   // Lookup guest loyalty balance when email looks valid
   useEffect(() => {
@@ -119,7 +151,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
   // Fetch authoritative server quote
   useEffect(() => {
-    if (!room) return;
+    if (!activeRoom) return;
     let cancelled = false;
     setQuoteLoading(true);
     setError('');
@@ -129,7 +161,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        roomId: room.id,
+        roomId: activeRoom.id,
         checkIn,
         checkOut,
         guestEmail: guestEmail.trim() || undefined,
@@ -153,9 +185,30 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [room, checkIn, checkOut, promoCode, useLoyaltyPoints, memberBalance, guestEmail]);
+  }, [activeRoom, checkIn, checkOut, promoCode, useLoyaltyPoints, memberBalance, guestEmail, realtimeNonce]);
 
-  if (!room) return null;
+  // Keep live quote, rates, and availability synchronized in real time while modal is open
+  useRealtimeEvents((msg) => {
+    if (
+      msg.type === 'availability:updated' ||
+      msg.type === 'reservation:created' ||
+      msg.type === 'reservation:updated' ||
+      msg.type === 'promotion:published' ||
+      msg.type === 'sync:refresh'
+    ) {
+      setRealtimeNonce((n) => n + 1);
+    } else if (msg.type === 'loyalty:updated') {
+      const payload = msg.payload as { loyalty?: LoyaltyAccount };
+      if (
+        payload?.loyalty &&
+        payload.loyalty.guestEmail.toLowerCase() === guestEmail.trim().toLowerCase()
+      ) {
+        setMemberBalance(payload.loyalty);
+      }
+    }
+  });
+
+  if (!activeRoom) return null;
 
   const handleContinueToPayment = (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,8 +231,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const finalizeBooking = async (intentId: string) => {
     const { data: confirmData } = await fetchJson<{
       reservation: Reservation;
-      emailLog: EmailLog;
+      emailLog: EmailLog | null;
       loyalty: LoyaltyAccount;
+      pendingTransferVerification?: boolean;
     }>('/api/bookings/confirm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -193,7 +247,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
       }),
     });
     setConfirmedData(confirmData);
-    setStep('confirmed');
+    setStep(confirmData.pendingTransferVerification ? 'pending_verification' : 'confirmed');
     onBookingCompleted(confirmData);
   };
 
@@ -213,16 +267,13 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          roomId: room.id,
+          roomId: activeRoom.id,
           checkIn,
           checkOut,
           guestEmail: guestEmail.trim(),
           redeemPoints: useLoyaltyPoints && memberBalance ? memberBalance.points : 0,
           promoCode: promoCode.trim() || undefined,
           paymentMethod,
-          cardNumber: paymentMethod === 'card' ? cardNumber : undefined,
-          cardExpiry: paymentMethod === 'card' ? cardExpiry : undefined,
-          cardCvc: paymentMethod === 'card' ? cardCvc : undefined,
         }),
       });
 
@@ -260,7 +311,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   };
 
   const handleDownloadReceipt = () => {
-    if (!confirmedData) return;
+    if (!confirmedData?.emailLog) return;
     const blob = new Blob([confirmedData.emailLog.bodyText], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -270,32 +321,25 @@ export const BookingModal: React.FC<BookingModalProps> = ({
     URL.revokeObjectURL(url);
   };
 
-  const formatCardInput = (raw: string) => {
-    const digits = raw.replace(/\D/g, '').slice(0, 16);
-    return digits.replace(/(.{4})/g, '$1 ').trim();
-  };
-
-  const formatExpiryInput = (raw: string) => {
-    const digits = raw.replace(/\D/g, '').slice(0, 4);
-    if (digits.length <= 2) return digits;
-    return `${digits.slice(0, 2)}/${digits.slice(2)}`;
-  };
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-[#040037]/75 p-0 backdrop-blur-sm sm:items-center sm:p-4"
       role="dialog"
       aria-modal="true"
-      aria-label={`Reserve ${room.name}`}
+      aria-label={`Reserve ${activeRoom.name}`}
     >
       <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-t-3xl border border-[#DEDDEB] bg-[#F8F9FA] text-[#040037] shadow-2xl dark:border-[#2B276B] dark:bg-[#08043D] dark:text-[#F8F9FA] sm:rounded-2xl">
         {/* Top bar */}
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/15 bg-[#040037] px-6 py-4 text-white">
           <div className="min-w-0">
             <p className="text-xs font-medium text-[#FF85A5]">
-              {step === 'confirmed' ? 'Reservation Confirmed' : `${room.tier} Tier · Agbor, Delta State`}
+              {step === 'confirmed'
+                ? 'Reservation Confirmed'
+                : step === 'pending_verification'
+                ? 'Awaiting Admin Transfer Confirmation'
+                : `${activeRoom.tier} Tier · Agbor, Delta State`}
             </p>
-            <h2 className="truncate font-editorial text-2xl font-semibold">{room.name}</h2>
+            <h2 className="truncate font-editorial text-2xl font-semibold">{activeRoom.name}</h2>
           </div>
           <button
             type="button"
@@ -308,7 +352,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
         </div>
 
         {/* Step Indicator */}
-        {step !== 'confirmed' && (
+        {step !== 'confirmed' && step !== 'pending_verification' && (
           <div className="flex items-center gap-4 border-b border-[#DEDDEB] bg-[#EFEFF5] px-6 py-3 text-xs font-medium dark:border-[#2B276B] dark:bg-[#0D0952]">
             <button
               type="button"
@@ -319,10 +363,10 @@ export const BookingModal: React.FC<BookingModalProps> = ({
             </button>
             <span className="text-[#DEDDEB] dark:text-[#2B276B]">/</span>
             <span className={step === 'payment' ? 'font-semibold text-[#E21E51] dark:text-[#FF85A5]' : 'text-[#514D7C] dark:text-[#C5C2E3]'}>
-              02. Secure Payment
+              02. Payment Method
             </span>
             <span className="text-[#DEDDEB] dark:text-[#2B276B]">/</span>
-            <span className="text-[#514D7C] dark:text-[#C5C2E3]">03. Email Confirmation</span>
+            <span className="text-[#514D7C] dark:text-[#C5C2E3]">03. Confirmation</span>
           </div>
         )}
 
@@ -336,22 +380,94 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           {step === 'details' && (
             <form onSubmit={handleContinueToPayment} className="grid gap-6 lg:grid-cols-12">
               <div className="space-y-4 lg:col-span-7">
-                <div className="grid gap-4 sm:grid-cols-2">
+                {allRooms && allRooms.length > 0 && (
+                  <label className="block text-xs font-medium text-[#514D7C] dark:text-[#DEDDEB]">
+                    Selected Room Category
+                    <select
+                      value={activeRoom.id}
+                      onChange={(e) => {
+                        setSelectedRoomId(e.target.value);
+                        setGuestsCount(1);
+                      }}
+                      className="mt-1.5 w-full rounded-lg border border-[#DEDDEB] bg-white px-3 py-2.5 text-sm font-medium text-[#040037] focus:border-[#E21E51] focus:outline-none dark:border-[#2B276B] dark:bg-[#0D0952] dark:text-[#F8F9FA]"
+                    >
+                      {allRooms.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.name} — {formatMoney(r.nightlyRateNgn, currency, ngnPerUsd)} / night ({r.availableUnits ?? r.totalUnits} open)
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                <div className="grid gap-4 sm:grid-cols-3">
                   <label className="block text-xs font-medium text-[#514D7C] dark:text-[#DEDDEB]">
                     Check-In Date
                     <input
                       type="date"
                       value={checkIn}
-                      onChange={(e) => setCheckIn(e.target.value)}
+                      onChange={(e) => {
+                        const nextIn = e.target.value;
+                        setCheckIn(nextIn);
+                        if (nextIn) {
+                          setCheckOut(addDays(nextIn, stayDays));
+                        }
+                      }}
                       required
                       className="mt-1.5 w-full rounded-lg border border-[#DEDDEB] bg-white px-3 py-2.5 text-sm text-[#040037] focus:border-[#E21E51] focus:outline-none dark:border-[#2B276B] dark:bg-[#0D0952] dark:text-[#F8F9FA]"
                     />
                   </label>
+
+                  <div className="block text-xs font-medium text-[#514D7C] dark:text-[#DEDDEB]">
+                    <label htmlFor="booking-days-input">Number of Days</label>
+                    <div className="mt-1.5 flex h-[42px] items-center overflow-hidden rounded-lg border border-[#DEDDEB] bg-white dark:border-[#2B276B] dark:bg-[#0D0952]">
+                      <button
+                        type="button"
+                        onClick={() => handleDaysChange(stayDays - 1)}
+                        disabled={stayDays <= 1}
+                        aria-label="Decrease booking days"
+                        className="flex h-full w-10 shrink-0 items-center justify-center border-r border-[#DEDDEB] text-base font-semibold text-[#040037] hover:bg-[#EFEFF5] disabled:opacity-40 dark:border-[#2B276B] dark:text-[#F8F9FA] dark:hover:bg-[#140F66]"
+                      >
+                        −
+                      </button>
+                      <input
+                        id="booking-days-input"
+                        type="number"
+                        min={1}
+                        max={60}
+                        value={daysInput}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          setDaysInput(raw);
+                          const parsed = parseInt(raw, 10);
+                          if (!Number.isNaN(parsed) && parsed >= 1) {
+                            const clamped = Math.min(60, parsed);
+                            if (checkIn) {
+                              setCheckOut(addDays(checkIn, clamped));
+                            }
+                          }
+                        }}
+                        onBlur={() => setDaysInput(String(stayDays))}
+                        required
+                        className="w-full bg-transparent px-2 text-center font-mono text-sm font-semibold text-[#040037] focus:outline-none dark:text-[#F8F9FA]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleDaysChange(stayDays + 1)}
+                        disabled={stayDays >= 60}
+                        aria-label="Increase booking days"
+                        className="flex h-full w-10 shrink-0 items-center justify-center border-l border-[#DEDDEB] text-base font-semibold text-[#040037] hover:bg-[#EFEFF5] disabled:opacity-40 dark:border-[#2B276B] dark:text-[#F8F9FA] dark:hover:bg-[#140F66]"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
                   <label className="block text-xs font-medium text-[#514D7C] dark:text-[#DEDDEB]">
                     Check-Out Date
                     <input
                       type="date"
                       value={checkOut}
+                      min={checkIn ? addDays(checkIn, 1) : undefined}
                       onChange={(e) => setCheckOut(e.target.value)}
                       required
                       className="mt-1.5 w-full rounded-lg border border-[#DEDDEB] bg-white px-3 py-2.5 text-sm text-[#040037] focus:border-[#E21E51] focus:outline-none dark:border-[#2B276B] dark:bg-[#0D0952] dark:text-[#F8F9FA]"
@@ -372,13 +488,13 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                     />
                   </label>
                   <label className="block text-xs font-medium text-[#514D7C] dark:text-[#DEDDEB]">
-                    Guests (Max {room.maxGuests})
+                    Guests (Max {activeRoom.maxGuests})
                     <select
                       value={guestsCount}
                       onChange={(e) => setGuestsCount(Number(e.target.value))}
                       className="mt-1.5 w-full rounded-lg border border-[#DEDDEB] bg-white px-3 py-2.5 text-sm text-[#040037] focus:border-[#E21E51] focus:outline-none dark:border-[#2B276B] dark:bg-[#0D0952] dark:text-[#F8F9FA]"
                     >
-                      {Array.from({ length: room.maxGuests }, (_, i) => i + 1).map((n) => (
+                      {Array.from({ length: activeRoom.maxGuests }, (_, i) => i + 1).map((n) => (
                         <option key={n} value={n}>
                           {n} {n === 1 ? 'Guest' : 'Guests'}
                         </option>
@@ -499,7 +615,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                       <div className="flex justify-between">
                         <span className="text-[#514D7C] dark:text-[#C5C2E3]">
                           {formatMoney(quote.nightlyRateNgn, currency, ngnPerUsd)} × {quote.nights}{' '}
-                          {quote.nights === 1 ? 'night' : 'nights'}
+                          {quote.nights === 1 ? 'day / night' : 'days / nights'}
                         </span>
                         <span className="tabular-nums font-medium">
                           {formatMoney(quote.subtotalNgn, currency, ngnPerUsd)}
@@ -559,10 +675,10 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   <div className="rounded-xl border border-[#DEDDEB] bg-white p-6 dark:border-[#2B276B] dark:bg-[#0D0952]">
                     <div className="flex items-center gap-2 text-sm font-semibold text-[#040037] dark:text-[#F8F9FA]">
                       <Building2 className="h-5 w-5 text-[#E21E51] dark:text-[#FF85A5]" />
-                      <span>Instant Bank Transfer Escrow</span>
+                      <span>Bank Transfer Payment Details</span>
                     </div>
                     <p className="mt-2 text-sm text-[#514D7C] dark:text-[#DEDDEB]">
-                      Transfer the exact amount below from your Nigerian banking app to confirm your suite immediately.
+                      Transfer the exact amount below from your banking app, then click submit. Our admin will confirm receipt of your transfer before your room is completely booked.
                     </p>
                     <div className="mt-5 space-y-3 rounded-xl bg-[#EFEFF5] p-4 text-sm dark:bg-[#08043D]">
                       <div className="flex justify-between">
@@ -593,7 +709,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                         disabled={processing}
                         className="flex-1 rounded-lg bg-[#E21E51] px-4 py-3 text-sm font-semibold text-white hover:bg-[#C81645] disabled:opacity-50 transition-colors"
                       >
-                        {processing ? 'Verifying Transfer...' : 'I Have Completed Transfer'}
+                        {processing ? 'Submitting Transfer...' : 'I Have Made the Transfer'}
                       </button>
                       <button
                         type="button"
@@ -606,10 +722,9 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                   </div>
                 ) : (
                   <form onSubmit={handleProcessPayment} className="space-y-4">
-                    <div className="grid grid-cols-3 gap-2 rounded-xl border border-[#DEDDEB] bg-white p-1.5 dark:border-[#2B276B] dark:bg-[#0D0952]">
+                    <div className="grid grid-cols-2 gap-2 rounded-xl border border-[#DEDDEB] bg-white p-1.5 dark:border-[#2B276B] dark:bg-[#0D0952]">
                       {(
                         [
-                          { id: 'card', label: 'Card Payment' },
                           { id: 'bank_transfer', label: 'Bank Transfer' },
                           { id: 'pay_at_hotel', label: 'Pay at Hotel' },
                         ] as const
@@ -629,64 +744,13 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                       ))}
                     </div>
 
-                    {paymentMethod === 'card' && (
-                      <div className="space-y-4 rounded-xl border border-[#DEDDEB] bg-white p-5 dark:border-[#2B276B] dark:bg-[#0D0952]">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-semibold">Debit / Credit Card (Visa, Mastercard, Verve)</span>
-                          <CreditCard className="h-4 w-4 text-[#E21E51] dark:text-[#FF85A5]" />
-                        </div>
-                        <label className="block text-xs font-medium text-[#514D7C] dark:text-[#DEDDEB]">
-                          Card Number
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            value={cardNumber}
-                            onChange={(e) => setCardNumber(formatCardInput(e.target.value))}
-                            placeholder="4532 •••• •••• ••••"
-                            required
-                            className="mt-1.5 w-full rounded-lg border border-[#DEDDEB] bg-[#EFEFF5] px-3 py-2.5 font-mono text-sm focus:border-[#E21E51] focus:outline-none dark:border-[#2B276B] dark:bg-[#08043D] dark:text-[#F8F9FA]"
-                          />
-                        </label>
-                        <div className="grid grid-cols-2 gap-4">
-                          <label className="block text-xs font-medium text-[#514D7C] dark:text-[#DEDDEB]">
-                            Expiry (MM/YY)
-                            <input
-                              type="text"
-                              inputMode="numeric"
-                              value={cardExpiry}
-                              onChange={(e) => setCardExpiry(formatExpiryInput(e.target.value))}
-                              placeholder="08/28"
-                              required
-                              className="mt-1.5 w-full rounded-lg border border-[#DEDDEB] bg-[#EFEFF5] px-3 py-2.5 font-mono text-sm focus:border-[#E21E51] focus:outline-none dark:border-[#2B276B] dark:bg-[#08043D] dark:text-[#F8F9FA]"
-                            />
-                          </label>
-                          <label className="block text-xs font-medium text-[#514D7C] dark:text-[#DEDDEB]">
-                            Security CVC
-                            <input
-                              type="password"
-                              inputMode="numeric"
-                              maxLength={4}
-                              value={cardCvc}
-                              onChange={(e) => setCardCvc(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                              placeholder="•••"
-                              required
-                              className="mt-1.5 w-full rounded-lg border border-[#DEDDEB] bg-[#EFEFF5] px-3 py-2.5 font-mono text-sm focus:border-[#E21E51] focus:outline-none dark:border-[#2B276B] dark:bg-[#08043D] dark:text-[#F8F9FA]"
-                            />
-                          </label>
-                        </div>
-                        <p className="flex items-center gap-2 text-xs text-[#514D7C] dark:text-[#C5C2E3]">
-                          <ShieldCheck className="h-4 w-4 text-emerald-700 dark:text-emerald-400" />
-                          <span>Tokenized server-verified checkout. Card numbers are never stored on disk.</span>
-                        </p>
-                      </div>
-                    )}
-
                     {paymentMethod === 'bank_transfer' && (
                       <div className="rounded-xl border border-[#DEDDEB] bg-white p-5 text-sm text-[#514D7C] dark:border-[#2B276B] dark:bg-[#0D0952] dark:text-[#DEDDEB]">
-                        <p className="font-medium text-[#040037] dark:text-[#F8F9FA]">Instant Naira Virtual Account</p>
+                        <p className="font-medium text-[#040037] dark:text-[#F8F9FA]">Bank Transfer (Admin Confirmed)</p>
                         <p className="mt-1.5">
-                          We will generate a dedicated one-time Providus Bank escrow account for{' '}
+                          We will generate our transfer account for{' '}
                           <strong className="tabular-nums">₦{quote.totalNgn.toLocaleString('en-NG')}</strong>.
+                          Once you complete your transfer, our front desk admin confirms receipt to finalize your room booking.
                         </p>
                       </div>
                     )}
@@ -695,7 +759,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                       <div className="rounded-xl border border-[#DEDDEB] bg-white p-5 text-sm text-[#514D7C] dark:border-[#2B276B] dark:bg-[#0D0952] dark:text-[#DEDDEB]">
                         <p className="font-medium text-[#040037] dark:text-[#F8F9FA]">Guaranteed Arrival Hold</p>
                         <p className="mt-1.5">
-                          Your suite will be held under your email and phone until 18:00 WAT on check-in day. Settle via POS, cash, or transfer at the Agbor reception desk.
+                          Your suite will be held under your email and phone until 18:00 WAT on check-in day. Settle via transfer or cash at the Agbor reception desk.
                         </p>
                       </div>
                     )}
@@ -714,12 +778,10 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                         className="flex-1 rounded-lg bg-[#E21E51] px-4 py-3 text-sm font-semibold text-white hover:bg-[#C81645] disabled:opacity-50 transition-colors"
                       >
                         {processing
-                          ? 'Authorizing Transaction...'
+                          ? 'Initializing...'
                           : paymentMethod === 'pay_at_hotel'
                           ? 'Confirm Guaranteed Reservation'
-                          : paymentMethod === 'bank_transfer'
-                          ? 'Generate Transfer Account'
-                          : `Pay ${formatMoney(quote.totalNgn, currency, ngnPerUsd)} & Confirm`}
+                          : 'Generate Transfer Account'}
                       </button>
                     </div>
                   </form>
@@ -739,8 +801,14 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-[#514D7C] dark:text-[#C5C2E3]">Suite</span>
-                      <span className="font-medium">{room.name}</span>
+                      <span className="text-[#514D7C] dark:text-[#C5C2E3]">Duration</span>
+                      <span className="font-medium">
+                        {quote.nights} {quote.nights === 1 ? 'Day / Night' : 'Days / Nights'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#514D7C] dark:text-[#C5C2E3]">Room</span>
+                      <span className="font-medium">{activeRoom.name}</span>
                     </div>
                     <div className="flex justify-between pt-2 text-sm font-bold text-[#032075] dark:text-[#F8F9FA]">
                       <span>Amount Due</span>
@@ -748,6 +816,60 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {step === 'pending_verification' && confirmedData && (
+            <div className="space-y-6">
+              <div className="rounded-xl border border-amber-500/35 bg-white p-6 dark:border-amber-400/30 dark:bg-[#0D0952]">
+                <div className="flex items-start gap-3">
+                  <Clock className="mt-0.5 h-6 w-6 shrink-0 text-amber-600 dark:text-amber-400" />
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+                      Transfer Submitted · Pending Admin Confirmation
+                    </p>
+                    <h3 className="mt-1 font-editorial text-2xl font-semibold text-[#040037] dark:text-[#F8F9FA]">
+                      Booking {confirmedData.reservation.bookingRef} Awaiting Verification
+                    </h3>
+                    <p className="mt-2 text-sm leading-relaxed text-[#514D7C] dark:text-[#DEDDEB]">
+                      Thank you, <strong>{confirmedData.reservation.guestName}</strong>. Your bank transfer submission (ref{' '}
+                      <span className="font-mono font-semibold">{confirmedData.reservation.paymentRef}</span>) has been logged for{' '}
+                      <strong>{confirmedData.reservation.roomName}</strong>. Our admin team will confirm your payment shortly before your room booking is completed and your confirmation email is issued.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-6 grid gap-4 border-t border-[#DEDDEB] pt-5 text-sm sm:grid-cols-3 dark:border-[#2B276B]">
+                  <div>
+                    <p className="text-xs text-[#514D7C] dark:text-[#C5C2E3]">Requested Dates</p>
+                    <p className="mt-0.5 font-medium">
+                      {formatDateShort(confirmedData.reservation.checkIn)} –{' '}
+                      {formatDateShort(confirmedData.reservation.checkOut)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-[#514D7C] dark:text-[#C5C2E3]">Transfer Reference</p>
+                    <p className="mt-0.5 font-mono font-medium">{confirmedData.reservation.paymentRef}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-[#514D7C] dark:text-[#C5C2E3]">Status</p>
+                    <p className="mt-0.5 font-semibold text-amber-700 dark:text-amber-300">
+                      Awaiting Admin Approval
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[#DEDDEB] bg-white px-5 py-4 text-xs text-[#514D7C] dark:border-[#2B276B] dark:bg-[#0D0952] dark:text-[#DEDDEB]">
+                <span>Need urgent verification? Call +234 812 595 7751 or +2349074489687.</span>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-lg bg-[#E21E51] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[#C81645] transition-colors"
+                >
+                  Done
+                </button>
               </div>
             </div>
           )}
@@ -767,18 +889,20 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                       </h3>
                       <p className="mt-1 text-sm text-[#514D7C] dark:text-[#DEDDEB]">
                         An automated confirmation email has been sent to{' '}
-                        <strong>{confirmedData.emailLog.toEmail}</strong>.
+                        <strong>{confirmedData.emailLog?.toEmail || confirmedData.reservation.guestEmail}</strong>.
                       </p>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleDownloadReceipt}
-                    className="inline-flex items-center gap-2 rounded-lg border border-[#DEDDEB] bg-[#EFEFF5] px-3.5 py-2 text-xs font-medium text-[#040037] hover:bg-[#DEDDEB] dark:border-[#2B276B] dark:bg-[#08043D] dark:text-[#F8F9FA]"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                    <span>Download Receipt</span>
-                  </button>
+                  {confirmedData.emailLog && (
+                    <button
+                      type="button"
+                      onClick={handleDownloadReceipt}
+                      className="inline-flex items-center gap-2 rounded-lg border border-[#DEDDEB] bg-[#EFEFF5] px-3.5 py-2 text-xs font-medium text-[#040037] hover:bg-[#DEDDEB] dark:border-[#2B276B] dark:bg-[#08043D] dark:text-[#F8F9FA]"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      <span>Download Receipt</span>
+                    </button>
+                  )}
                 </div>
 
                 <div className="mt-6 grid gap-4 border-t border-[#DEDDEB] pt-5 sm:grid-cols-3 text-sm dark:border-[#2B276B]">
@@ -803,26 +927,28 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               </div>
 
               {/* Automated Email Confirmation Inspector */}
-              <div className="overflow-hidden rounded-xl border border-[#DEDDEB] bg-white dark:border-[#2B276B] dark:bg-[#0D0952]">
-                <div className="flex items-center justify-between border-b border-[#DEDDEB] px-5 py-3 dark:border-[#2B276B]">
-                  <div className="flex items-center gap-2 text-xs font-medium text-[#040037] dark:text-[#F8F9FA]">
-                    <Mail className="h-4 w-4 text-[#E21E51] dark:text-[#FF85A5]" />
-                    <span>Automated Email Confirmation · {confirmedData.emailLog.subject}</span>
+              {confirmedData.emailLog && (
+                <div className="overflow-hidden rounded-xl border border-[#DEDDEB] bg-white dark:border-[#2B276B] dark:bg-[#0D0952]">
+                  <div className="flex items-center justify-between border-b border-[#DEDDEB] px-5 py-3 dark:border-[#2B276B]">
+                    <div className="flex items-center gap-2 text-xs font-medium text-[#040037] dark:text-[#F8F9FA]">
+                      <Mail className="h-4 w-4 text-[#E21E51] dark:text-[#FF85A5]" />
+                      <span>Automated Email Confirmation · {confirmedData.emailLog.subject}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowEmailPreview((v) => !v)}
+                      className="text-xs font-medium text-[#E21E51] dark:text-[#FF85A5] hover:underline"
+                    >
+                      {showEmailPreview ? 'Hide Preview' : 'Show Preview'}
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowEmailPreview((v) => !v)}
-                    className="text-xs font-medium text-[#E21E51] dark:text-[#FF85A5] hover:underline"
-                  >
-                    {showEmailPreview ? 'Hide Preview' : 'Show Preview'}
-                  </button>
+                  {showEmailPreview && (
+                    <pre className="max-h-60 overflow-y-auto whitespace-pre-wrap bg-[#EFEFF5] p-5 font-mono text-xs leading-relaxed text-[#040037] dark:bg-[#08043D] dark:text-[#DEDDEB]">
+                      {confirmedData.emailLog.bodyText}
+                    </pre>
+                  )}
                 </div>
-                {showEmailPreview && (
-                  <pre className="max-h-60 overflow-y-auto whitespace-pre-wrap bg-[#EFEFF5] p-5 font-mono text-xs leading-relaxed text-[#040037] dark:bg-[#08043D] dark:text-[#DEDDEB]">
-                    {confirmedData.emailLog.bodyText}
-                  </pre>
-                )}
-              </div>
+              )}
 
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-2 text-xs text-[#514D7C] dark:text-[#C5C2E3]">

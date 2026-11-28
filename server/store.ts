@@ -37,7 +37,7 @@ export interface HotelDatabase {
 
 const BUNDLED_DATA_DIR = path.resolve(process.cwd(), 'data');
 const BUNDLED_DB_FILE = path.join(BUNDLED_DATA_DIR, 'hotel-db.json');
-const TMP_DATA_DIR = path.join(os.tmpdir(), 'joker-hotel-data');
+const TMP_DATA_DIR = path.join(os.tmpdir(), 'winners-hotel-data');
 
 function resolveWritableDataDir(): string {
   if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
@@ -99,7 +99,7 @@ function createInitialDb(): HotelDatabase {
         tagline: 'Thoughtfully designed for a relaxing and affordable stay without compromising comfort or quality.',
         description:
           'Our Standard Room is thoughtfully designed to provide guests with a relaxing and affordable stay without compromising comfort or quality. Perfect for solo travelers, couples, and short business visits, the room offers a calm and welcoming atmosphere ideal for rest and productivity.',
-        nightlyRateNgn: 45000,
+        nightlyRateNgn: 20500,
         maxGuests: 2,
         bedConfig: '1 Queen Bed',
         sizeSqm: 28,
@@ -130,7 +130,7 @@ function createInitialDb(): HotelDatabase {
         tagline: 'Extra space, style, and convenience combining modern luxury with warm hospitality.',
         description:
           'Experience a higher level of comfort in our Deluxe Room, designed for guests who appreciate extra space, style, and convenience. Combining modern luxury with warm hospitality, this room creates the perfect environment for relaxation after a busy day.',
-        nightlyRateNgn: 75000,
+        nightlyRateNgn: 22500,
         maxGuests: 2,
         bedConfig: '1 King Bed',
         sizeSqm: 36,
@@ -161,7 +161,7 @@ function createInitialDb(): HotelDatabase {
         tagline: 'Specially crafted for premium comfort, privacy, and sophistication.',
         description:
           'Our Executive Room is specially crafted for guests seeking premium comfort, privacy, and sophistication. With stylish interiors, spacious accommodation, and enhanced amenities, this room offers a truly refined hospitality experience.',
-        nightlyRateNgn: 120000,
+        nightlyRateNgn: 25500,
         maxGuests: 3,
         bedConfig: '1 King Bed + Lounge Seating',
         sizeSqm: 54,
@@ -185,36 +185,6 @@ function createInitialDb(): HotelDatabase {
         highlights: ['King + Lounge', '54 m²', '3 Guests max', 'Chauffeur pickup'],
       },
       {
-        id: 'room-lounge',
-        slug: 'suite-room',
-        name: 'Suite Room',
-        tier: 'Suite',
-        tagline: 'Separate living and sleeping areas with modern elegance for extended stays.',
-        description:
-          'Our Suite Room offers a perfect blend of luxury, comfort, and modern elegance for guests who desire a more spacious and refined experience. Beautifully designed with separate living and sleeping areas, the Suite provides the ideal environment for relaxation, business, and extended stays.',
-        nightlyRateNgn: 185000,
-        maxGuests: 3,
-        bedConfig: '1 King Bed + Private Parlour',
-        sizeSqm: 72,
-        totalUnits: 2,
-        maintenanceUnits: 0,
-        status: 'available',
-        imageUrl: '/assets/winners/rooms/suite-4.jpg',
-        galleryImages: [
-          '/assets/winners/rooms/suite-4.jpg',
-          '/assets/winners/rooms/suite-1.jpg',
-          '/assets/winners/rooms/suite-2.jpg',
-          '/assets/winners/rooms/suite-3.jpg',
-        ],
-        amenities: [
-          'Separate Living & Sleeping Parlour',
-          'VIP Reserved Table at Gold Room Lounge',
-          'Private Chauffeur City Transfers',
-          'Complimentary Full-Board Breakfast',
-        ],
-        highlights: ['King + Parlour', '72 m²', '3 Guests max', 'VIP Lounge access'],
-      },
-      {
         id: 'room-presidential',
         slug: 'presidential-room',
         name: 'Presidential Room',
@@ -222,7 +192,7 @@ function createInitialDb(): HotelDatabase {
         tagline: 'The highest standard of luxury, exclusivity, and prestige at Winners Hotel and Suites.',
         description:
           'The Presidential Room represents the highest standard of luxury and prestige at Winners Hotel and Suites. Designed for distinguished guests who desire elegance, exclusivity, and world-class comfort, this exceptional accommodation delivers an unforgettable experience.',
-        nightlyRateNgn: 320000,
+        nightlyRateNgn: 35500,
         maxGuests: 4,
         bedConfig: '2 King Bedrooms + Grand Salon',
         sizeSqm: 128,
@@ -246,6 +216,36 @@ function createInitialDb(): HotelDatabase {
           'Private Executive Boardroom Access',
         ],
         highlights: ['2 King Suites', '128 m²', '4 Guests max', 'Private chef & driver'],
+      },
+      {
+        id: 'room-lounge',
+        slug: 'suite-room',
+        name: 'Suite Room',
+        tier: 'Suite',
+        tagline: 'Separate living and sleeping areas with modern elegance for extended stays.',
+        description:
+          'Our Suite Room offers a perfect blend of luxury, comfort, and modern elegance for guests who desire a more spacious and refined experience. Beautifully designed with separate living and sleeping areas, the Suite provides the ideal environment for relaxation, business, and extended stays.',
+        nightlyRateNgn: 65500,
+        maxGuests: 3,
+        bedConfig: '1 King Bed + Private Parlour',
+        sizeSqm: 72,
+        totalUnits: 2,
+        maintenanceUnits: 0,
+        status: 'available',
+        imageUrl: '/assets/winners/rooms/suite-4.jpg',
+        galleryImages: [
+          '/assets/winners/rooms/suite-4.jpg',
+          '/assets/winners/rooms/suite-1.jpg',
+          '/assets/winners/rooms/suite-2.jpg',
+          '/assets/winners/rooms/suite-3.jpg',
+        ],
+        amenities: [
+          'Separate Living & Sleeping Parlour',
+          'VIP Reserved Table at Gold Room Lounge',
+          'Private Chauffeur City Transfers',
+          'Complimentary Full-Board Breakfast',
+        ],
+        highlights: ['King + Parlour', '72 m²', '3 Guests max', 'VIP Lounge access'],
       },
     ],
     amenities: [
@@ -321,7 +321,7 @@ function createInitialDb(): HotelDatabase {
           'Bookable architectural backdrops, golden-hour poolside decks, and private suite sets for bridal, fashion, and brand photo shoots.',
         hours: '08:00 – 20:00 Daily',
         flyerDepartment: 'Social Media & Guest Relations',
-        imageUrl: '/src/assets/images/facility_photoshoot_studio_1795699571078.jpg',
+        imageUrl: '/assets/winners/hotel-exterior.jpg',
       },
       {
         id: 'amen-salon-spa',
@@ -351,7 +351,7 @@ function createInitialDb(): HotelDatabase {
           'We keep you busy and entertained with Snooker boards, Table Soccer, PS4, and PS5 console stations for friendly guest competition.',
         hours: '10:00 – 01:00 Daily',
         flyerDepartment: 'Entertainment & Lounge Team',
-        imageUrl: '/assets/winners/hotel-showcase-1.jpg',
+        imageUrl: '/src/assets/images/facility_gaming_lounge_1795878832174.jpg',
       },
       {
         id: 'amen-chauffeur-security',
@@ -379,18 +379,16 @@ function createInitialDb(): HotelDatabase {
         guestsCount: 2,
         specialRequests: 'Late evening lounge table reservation for 20:30.',
         airportPickup: true,
-        subtotalNgn: 370000,
-        serviceFeeNgn: 27750,
+        subtotalNgn: 131000,
+        serviceFeeNgn: 9825,
         promoDiscountNgn: 0,
         loyaltyDiscountNgn: 0,
-        totalPaidNgn: 397750,
-        paymentMethod: 'card',
-        paymentRef: 'PAY-WHS-908412',
-        cardLast4: '4242',
-        cardBrand: 'Visa',
+        totalPaidNgn: 140825,
+        paymentMethod: 'bank_transfer',
+        paymentRef: 'TRF-WHS-908412',
         paymentStatus: 'paid',
         status: 'confirmed',
-        pointsEarned: 397,
+        pointsEarned: 140,
         pointsRedeemed: 0,
         emailConfirmedAt: new Date(Date.now() - 86400000).toISOString(),
         createdAt: new Date(Date.now() - 86400000).toISOString(),
@@ -410,16 +408,16 @@ function createInitialDb(): HotelDatabase {
         guestsCount: 1,
         specialRequests: 'Quiet high-floor room, morning coffee at 07:00.',
         airportPickup: false,
-        subtotalNgn: 150000,
-        serviceFeeNgn: 11250,
+        subtotalNgn: 45000,
+        serviceFeeNgn: 3375,
         promoDiscountNgn: 0,
         loyaltyDiscountNgn: 0,
-        totalPaidNgn: 161250,
+        totalPaidNgn: 48375,
         paymentMethod: 'bank_transfer',
         paymentRef: 'TRF-WHS-663201',
         paymentStatus: 'paid',
         status: 'checked_in',
-        pointsEarned: 161,
+        pointsEarned: 48,
         pointsRedeemed: 0,
         emailConfirmedAt: new Date(Date.now() - 172800000).toISOString(),
         createdAt: new Date(Date.now() - 172800000).toISOString(),
@@ -439,18 +437,16 @@ function createInitialDb(): HotelDatabase {
         guestsCount: 2,
         specialRequests: 'Benin Airport pickup on arrival.',
         airportPickup: true,
-        subtotalNgn: 600000,
-        serviceFeeNgn: 45000,
-        promoDiscountNgn: 90000,
+        subtotalNgn: 127500,
+        serviceFeeNgn: 9563,
+        promoDiscountNgn: 19125,
         loyaltyDiscountNgn: 0,
-        totalPaidNgn: 555000,
-        paymentMethod: 'card',
-        paymentRef: 'PAY-WHS-552104',
-        cardLast4: '8819',
-        cardBrand: 'Mastercard',
+        totalPaidNgn: 117938,
+        paymentMethod: 'bank_transfer',
+        paymentRef: 'TRF-WHS-552104',
         paymentStatus: 'paid',
         status: 'checked_in',
-        pointsEarned: 555,
+        pointsEarned: 117,
         pointsRedeemed: 0,
         emailConfirmedAt: new Date(Date.now() - 259200000).toISOString(),
         createdAt: new Date(Date.now() - 259200000).toISOString(),
@@ -464,8 +460,8 @@ function createInitialDb(): HotelDatabase {
         toEmail: 'uzorbenny51@gmail.com',
         guestName: 'Osahon Igbinedion',
         subject: 'Reservation Confirmed · Winners Hotel and Suites (WHS-2611-8402)',
-        bodyText: `Dear Osahon Igbinedion,\n\nYour reservation WHS-2611-8402 for Suite Room (${tomorrow} to ${inThreeDays}) is confirmed.\nTotal Paid: NGN 397,750\nCheck-in: 14:00 WAT · Agbor, Delta State.\nCall Us: +234 812 595 7751 · +2349074489687 · info@winnersgroupofcompany.com`,
-        bodyHtml: `<div style="font-family:sans-serif;padding:24px;background:#F8F9FA;color:#040037"><h2>Reservation Confirmed: WHS-2611-8402</h2><p>Dear Osahon Igbinedion, thank you for choosing Winners Hotel and Suites, Agbor, Delta State.</p><p><strong>Suite:</strong> Suite Room<br/><strong>Stay:</strong> ${tomorrow} to ${inThreeDays} (2 nights)<br/><strong>Total Paid:</strong> ₦397,750</p><p>Call us on <strong>+234 812 595 7751</strong> or <strong>+2349074489687</strong> · Email: <strong>info@winnersgroupofcompany.com</strong>.</p></div>`,
+        bodyText: `Dear Osahon Igbinedion,\n\nYour reservation WHS-2611-8402 for Suite Room (${tomorrow} to ${inThreeDays}) is confirmed.\nTotal Paid: NGN 140,825\nCheck-in: 14:00 WAT · Agbor, Delta State.\nCall Us: +234 812 595 7751 · +2349074489687 · info@winnersgroupofcompany.com`,
+        bodyHtml: `<div style="font-family:sans-serif;padding:24px;background:#F8F9FA;color:#040037"><h2>Reservation Confirmed: WHS-2611-8402</h2><p>Dear Osahon Igbinedion, thank you for choosing Winners Hotel and Suites, Agbor, Delta State.</p><p><strong>Suite:</strong> Suite Room<br/><strong>Stay:</strong> ${tomorrow} to ${inThreeDays} (2 nights)<br/><strong>Total Paid:</strong> ₦140,825</p><p>Call us on <strong>+234 812 595 7751</strong> or <strong>+2349074489687</strong> · Email: <strong>info@winnersgroupofcompany.com</strong>.</p></div>`,
         deliveryMode: 'dispatch_log',
         status: 'sent',
         sentAt: new Date(Date.now() - 86400000).toISOString(),
@@ -551,6 +547,7 @@ function createInitialDb(): HotelDatabase {
 }
 
 let cachedDb: HotelDatabase | null = null;
+let cachedDbMtime = 0;
 
 function migrateParsedDb(parsed: HotelDatabase): { db: HotelDatabase; migrated: boolean } {
   let migrated = false;
@@ -699,13 +696,80 @@ function migrateParsedDb(parsed: HotelDatabase): { db: HotelDatabase; migrated: 
     migrated = true;
   }
 
+  if (
+    parsed.amenities?.some(
+      (a) =>
+        (a.id === 'amen-photoshoots' && a.imageUrl?.includes('facility_photoshoot_studio')) ||
+        (a.id === 'amen-gaming' && a.imageUrl?.includes('hotel-showcase-1'))
+    )
+  ) {
+    parsed.amenities = defaults.amenities;
+    migrated = true;
+  }
+
+  const hasLegacyRates = parsed.rooms?.some((r) =>
+    [45000, 75000, 120000, 185000, 320000].includes(r.nightlyRateNgn)
+  );
+  if (hasLegacyRates) {
+    const order = ['room-classic', 'room-deluxe', 'room-ambassador', 'room-presidential', 'room-lounge'];
+    for (const r of parsed.rooms || []) {
+      const def = defaults.rooms.find((d) => d.id === r.id);
+      if (def) {
+        r.nightlyRateNgn = def.nightlyRateNgn;
+      }
+    }
+    parsed.rooms.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+    for (const res of parsed.reservations || []) {
+      if (res.id === 'res-seed-1' && res.totalPaidNgn === 397750) {
+        res.subtotalNgn = 131000;
+        res.serviceFeeNgn = 9825;
+        res.totalPaidNgn = 140825;
+        res.pointsEarned = 140;
+      } else if (res.id === 'res-seed-2' && res.totalPaidNgn === 161250) {
+        res.subtotalNgn = 45000;
+        res.serviceFeeNgn = 3375;
+        res.totalPaidNgn = 48375;
+        res.pointsEarned = 48;
+      } else if (res.id === 'res-seed-3' && res.totalPaidNgn === 555000) {
+        res.subtotalNgn = 127500;
+        res.serviceFeeNgn = 9563;
+        res.promoDiscountNgn = 19125;
+        res.totalPaidNgn = 117938;
+        res.pointsEarned = 117;
+      }
+    }
+    migrated = true;
+  }
+
+  for (const res of parsed.reservations || []) {
+    if ((res.paymentMethod as string) === 'card') {
+      res.paymentMethod = 'bank_transfer';
+      migrated = true;
+    }
+    const legacyRes = res as Reservation & { cardLast4?: string; cardBrand?: string };
+    if (legacyRes.cardLast4 !== undefined || legacyRes.cardBrand !== undefined) {
+      delete legacyRes.cardLast4;
+      delete legacyRes.cardBrand;
+      migrated = true;
+    }
+  }
+
   return { db: parsed, migrated };
 }
 
 export function loadDb(): HotelDatabase {
-  if (cachedDb) return cachedDb;
   try {
-    const sourceFile = fs.existsSync(DB_FILE)
+    const hasLiveFile = fs.existsSync(DB_FILE);
+    if (cachedDb && hasLiveFile) {
+      const mtime = fs.statSync(DB_FILE).mtimeMs;
+      if (mtime === cachedDbMtime) {
+        return cachedDb;
+      }
+    } else if (cachedDb && !hasLiveFile) {
+      return cachedDb;
+    }
+
+    const sourceFile = hasLiveFile
       ? DB_FILE
       : fs.existsSync(BUNDLED_DB_FILE)
       ? BUNDLED_DB_FILE
@@ -716,6 +780,7 @@ export function loadDb(): HotelDatabase {
       const parsed = JSON.parse(raw) as HotelDatabase;
       const { db, migrated } = migrateParsedDb(parsed);
       cachedDb = db;
+      cachedDbMtime = fs.statSync(sourceFile).mtimeMs;
       if (migrated || sourceFile !== DB_FILE) {
         saveDb(cachedDb);
       }
@@ -738,6 +803,7 @@ export function saveDb(db: HotelDatabase): void {
     const tmpFile = `${DB_FILE}.${process.pid}.tmp`;
     fs.writeFileSync(tmpFile, JSON.stringify(db, null, 2), 'utf8');
     fs.renameSync(tmpFile, DB_FILE);
+    cachedDbMtime = fs.statSync(DB_FILE).mtimeMs;
   } catch (err) {
     console.warn('Unable to persist hotel-db.json to disk (continuing in memory):', err);
   }
@@ -797,6 +863,9 @@ export function calculateQuote(
   const room = db.rooms.find((r) => r.id === params.roomId);
   if (!room) {
     throw new Error('Selected room category was not found.');
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(params.checkIn || '') || !/^\d{4}-\d{2}-\d{2}$/.test(params.checkOut || '')) {
+    throw new Error('Please choose valid check-in and check-out dates.');
   }
   const nights = getNightsCount(params.checkIn, params.checkOut);
   if (nights <= 0 || nights > 60) {

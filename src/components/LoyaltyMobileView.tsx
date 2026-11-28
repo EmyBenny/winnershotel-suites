@@ -17,6 +17,7 @@ import type {
   SeasonalPromotion,
 } from '../types/hotel.ts';
 import { usePushPermission } from '../hooks/usePWAInstall.ts';
+import { useRealtimeEvents } from '../hooks/useRealtimeEvents.ts';
 import { PWAInstallButton } from './PWAInstallButton.tsx';
 import { formatDateShort, formatMoney, type CurrencyCode } from '../utils/currency.ts';
 import { fetchJson } from '../utils/api.ts';
@@ -73,6 +74,42 @@ export const LoyaltyMobileView: React.FC<LoyaltyMobileViewProps> = ({
     setEmailInput(activeGuestEmail);
     fetchGuestOverview(activeGuestEmail);
   }, [activeGuestEmail, fetchGuestOverview]);
+
+  useRealtimeEvents((msg) => {
+    const normalizedEmail = activeGuestEmail.trim().toLowerCase();
+    if (msg.type === 'reservation:created' || msg.type === 'reservation:updated') {
+      const payload = msg.payload as {
+        reservation?: Reservation;
+        emailLog?: EmailLog | null;
+        loyalty?: LoyaltyAccount;
+      };
+      if (payload?.reservation && payload.reservation.guestEmail.toLowerCase() === normalizedEmail) {
+        setReservations((prev) => {
+          const exists = prev.some((r) => r.id === payload.reservation!.id);
+          if (exists) {
+            return prev.map((r) => (r.id === payload.reservation!.id ? payload.reservation! : r));
+          }
+          return [payload.reservation!, ...prev];
+        });
+      }
+      if (payload?.emailLog && payload.emailLog.toEmail.toLowerCase() === normalizedEmail) {
+        setEmailLogs((prev) => {
+          if (prev.some((e) => e.id === payload.emailLog!.id)) return prev;
+          return [payload.emailLog!, ...prev];
+        });
+      }
+      if (payload?.loyalty && payload.loyalty.guestEmail.toLowerCase() === normalizedEmail) {
+        setLoyalty(payload.loyalty);
+      }
+    } else if (msg.type === 'loyalty:updated') {
+      const payload = msg.payload as { loyalty?: LoyaltyAccount };
+      if (payload?.loyalty && payload.loyalty.guestEmail.toLowerCase() === normalizedEmail) {
+        setLoyalty(payload.loyalty);
+      }
+    } else if (msg.type === 'sync:refresh') {
+      fetchGuestOverview(activeGuestEmail);
+    }
+  });
 
   const handleLookup = (e: React.FormEvent) => {
     e.preventDefault();
@@ -435,12 +472,18 @@ export const LoyaltyMobileView: React.FC<LoyaltyMobileViewProps> = ({
                     <span className="tabular-nums text-sm font-semibold text-[#032075] dark:text-[#F8F9FA]">
                       {formatMoney(res.totalPaidNgn, currency, ngnPerUsd)}
                     </span>
-                    {mail && (
-                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                        <Mail className="h-3.5 w-3.5" />
-                        <span>Email Confirmed</span>
+                    {res.status === 'pending_payment' || res.paymentStatus === 'pending_verification' ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+                        <span>Pending Transfer Approval</span>
                       </span>
+                    ) : (
+                      mail && (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          <Mail className="h-3.5 w-3.5" />
+                          <span>Email Confirmed</span>
+                        </span>
+                      )
                     )}
                   </div>
                 </div>

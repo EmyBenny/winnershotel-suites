@@ -29,6 +29,7 @@ import { LoyaltyMobileView } from './components/LoyaltyMobileView.tsx';
 import { AdminDashboard } from './components/AdminDashboard.tsx';
 import { PWAInstallButton } from './components/PWAInstallButton.tsx';
 import { useOnlineStatus, usePushPermission } from './hooks/usePWAInstall.ts';
+import { useRealtimeEvents } from './hooks/useRealtimeEvents.ts';
 import {
   addDays,
   diffNights,
@@ -138,76 +139,40 @@ export default function App() {
     fetchBootstrap(checkIn, checkOut);
   }, [fetchBootstrap, checkIn, checkOut]);
 
-  // Real-time WebSocket synchronization
-  useEffect(() => {
-    let ws: WebSocket | null = null;
-    let reconnectTimer: number | undefined;
-    let unmounted = false;
-    let hasOpenedOnce = false;
-    let failedAttempts = 0;
+  const checkInRef = useRef(checkIn);
+  const checkOutRef = useRef(checkOut);
+  checkInRef.current = checkIn;
+  checkOutRef.current = checkOut;
 
-    const connect = () => {
-      if (unmounted) return;
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
-
-      ws.onopen = () => {
-        hasOpenedOnce = true;
-        failedAttempts = 0;
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const msg = JSON.parse(event.data) as { type: string; payload?: unknown };
-          if (msg.type === 'availability:updated') {
-            const payload = msg.payload as { rooms?: RoomCategory[] };
-            if (payload?.rooms) {
-              setRooms(payload.rooms);
-            }
-          } else if (msg.type === 'promotion:published') {
-            const payload = msg.payload as { promotions?: SeasonalPromotion[] };
-            if (payload?.promotions) {
-              setPromotions(payload.promotions);
-            }
-          } else if (msg.type === 'notification:push') {
-            const notif = msg.payload as PushNotificationItem;
-            if (notif?.id) {
-              setNotifications((prev) => {
-                if (prev.some((n) => n.id === notif.id)) return prev;
-                return [notif, ...prev];
-              });
-              setLiveToast(notif);
-              showDeviceNotifRef.current(notif.title, notif.body, notif.id);
-              window.setTimeout(() => {
-                setLiveToast((curr) => (curr?.id === notif.id ? null : curr));
-              }, 7000);
-            }
-          }
-        } catch {
-          // ignore malformed event
-        }
-      };
-
-      ws.onclose = () => {
-        if (unmounted) return;
-        if (!hasOpenedOnce) {
-          failedAttempts += 1;
-          if (failedAttempts >= 2) {
-            return;
-          }
-        }
-        reconnectTimer = window.setTimeout(connect, 3000);
-      };
-    };
-
-    connect();
-
-    return () => {
-      unmounted = true;
-      if (reconnectTimer) window.clearTimeout(reconnectTimer);
-      ws?.close();
-    };
-  }, []);
+  // Real-time WebSocket + SSE synchronization across all connected tabs & devices
+  useRealtimeEvents((msg) => {
+    if (
+      msg.type === 'availability:updated' ||
+      msg.type === 'reservation:created' ||
+      msg.type === 'reservation:updated' ||
+      msg.type === 'sync:refresh'
+    ) {
+      fetchBootstrap(checkInRef.current, checkOutRef.current);
+    } else if (msg.type === 'promotion:published') {
+      const payload = msg.payload as { promotions?: SeasonalPromotion[] };
+      if (payload?.promotions) {
+        setPromotions(payload.promotions);
+      }
+    } else if (msg.type === 'notification:push') {
+      const notif = msg.payload as PushNotificationItem;
+      if (notif?.id) {
+        setNotifications((prev) => {
+          if (prev.some((n) => n.id === notif.id)) return prev;
+          return [notif, ...prev];
+        });
+        setLiveToast(notif);
+        showDeviceNotifRef.current(notif.title, notif.body, notif.id);
+        window.setTimeout(() => {
+          setLiveToast((curr) => (curr?.id === notif.id ? null : curr));
+        }, 7000);
+      }
+    }
+  });
 
   const handleAvailabilitySearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -524,7 +489,7 @@ export default function App() {
                 </span>
               </div>
 
-              <form onSubmit={handleAvailabilitySearch} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <form onSubmit={handleAvailabilitySearch} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
                 <label className="block text-xs font-medium text-[#514D7C] dark:text-[#DEDDEB]">
                   Check-In Date
                   <input
@@ -533,13 +498,51 @@ export default function App() {
                     onChange={(e) => {
                       const nextIn = e.target.value;
                       setCheckIn(nextIn);
-                      if (nextIn >= checkOut) {
-                        setCheckOut(addDays(nextIn, 1));
+                      if (nextIn) {
+                        setCheckOut(addDays(nextIn, stayNights));
                       }
                     }}
                     className="mt-1.5 w-full rounded-lg border border-[#DEDDEB] bg-[#F8F9FA] px-3 py-2.5 text-sm text-[#040037] focus:border-[#E21E51] focus:outline-none dark:border-[#2B276B] dark:bg-[#040037] dark:text-white"
                   />
                 </label>
+
+                <div className="block text-xs font-medium text-[#514D7C] dark:text-[#DEDDEB]">
+                  <label htmlFor="search-days-input">Number of Days</label>
+                  <div className="mt-1.5 flex h-[42px] items-center overflow-hidden rounded-lg border border-[#DEDDEB] bg-[#F8F9FA] dark:border-[#2B276B] dark:bg-[#040037]">
+                    <button
+                      type="button"
+                      onClick={() => checkIn && setCheckOut(addDays(checkIn, Math.max(1, stayNights - 1)))}
+                      disabled={stayNights <= 1}
+                      aria-label="Decrease stay days"
+                      className="flex h-full w-9 shrink-0 items-center justify-center border-r border-[#DEDDEB] text-base font-semibold text-[#040037] hover:bg-[#EFEFF5] disabled:opacity-40 dark:border-[#2B276B] dark:text-white dark:hover:bg-[#140F66]"
+                    >
+                      −
+                    </button>
+                    <input
+                      id="search-days-input"
+                      type="number"
+                      min={1}
+                      max={60}
+                      value={stayNights}
+                      onChange={(e) => {
+                        const parsed = parseInt(e.target.value, 10);
+                        if (!Number.isNaN(parsed) && parsed >= 1 && checkIn) {
+                          setCheckOut(addDays(checkIn, Math.min(60, parsed)));
+                        }
+                      }}
+                      className="w-full bg-transparent px-2 text-center font-mono text-sm font-semibold text-[#040037] focus:outline-none dark:text-white"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => checkIn && setCheckOut(addDays(checkIn, Math.min(60, stayNights + 1)))}
+                      disabled={stayNights >= 60}
+                      aria-label="Increase stay days"
+                      className="flex h-full w-9 shrink-0 items-center justify-center border-l border-[#DEDDEB] text-base font-semibold text-[#040037] hover:bg-[#EFEFF5] disabled:opacity-40 dark:border-[#2B276B] dark:text-white dark:hover:bg-[#140F66]"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
 
                 <label className="block text-xs font-medium text-[#514D7C] dark:text-[#DEDDEB]">
                   Check-Out Date
@@ -572,7 +575,7 @@ export default function App() {
                     className="flex h-[42px] w-full items-center justify-center gap-2 rounded-lg bg-[#E21E51] px-4 text-xs font-semibold text-white hover:bg-[#C81645] transition-colors whitespace-nowrap"
                   >
                     <Calendar className="h-4 w-4" />
-                    <span>Check Live Availability</span>
+                    <span>Check Availability</span>
                   </button>
                 </div>
               </form>
@@ -941,6 +944,7 @@ export default function App() {
       {bookingRoom && (
         <BookingModal
           room={bookingRoom}
+          allRooms={rooms}
           initialCheckIn={checkIn}
           initialCheckOut={checkOut}
           initialPromoCode={pendingPromoCode}
@@ -949,14 +953,22 @@ export default function App() {
           currency={currency}
           ngnPerUsd={ngnPerUsd}
           onClose={() => setBookingRoom(null)}
-          onBookingCompleted={({ reservation, loyalty }) => {
+          onBookingCompleted={({ reservation, loyalty, pendingTransferVerification }) => {
             setActiveGuestEmail(reservation.guestEmail);
             fetchBootstrap(checkIn, checkOut);
-            showDeviceNotifRef.current(
-              `Booking Confirmed · ${reservation.bookingRef}`,
-              `${reservation.roomName} confirmed. +${loyalty.points} pts in Winners Royal Club.`,
-              reservation.bookingRef
-            );
+            if (pendingTransferVerification || reservation.status === 'pending_payment') {
+              showDeviceNotifRef.current(
+                `Transfer Submitted · ${reservation.bookingRef}`,
+                `${reservation.roomName} transfer received (${reservation.paymentRef}). Awaiting admin confirmation before booking completes.`,
+                reservation.bookingRef
+              );
+            } else {
+              showDeviceNotifRef.current(
+                `Booking Confirmed · ${reservation.bookingRef}`,
+                `${reservation.roomName} confirmed. +${loyalty.points} pts in Winners Royal Club.`,
+                reservation.bookingRef
+              );
+            }
           }}
         />
       )}

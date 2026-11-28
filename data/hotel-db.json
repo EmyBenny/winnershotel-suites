@@ -20,7 +20,7 @@
       "tier": "Standard",
       "tagline": "Thoughtfully designed for a relaxing and affordable stay without compromising comfort or quality.",
       "description": "Our Standard Room is thoughtfully designed to provide guests with a relaxing and affordable stay without compromising comfort or quality. Perfect for solo travelers, couples, and short business visits, the room offers a calm and welcoming atmosphere ideal for rest and productivity.",
-      "nightlyRateNgn": 45000,
+      "nightlyRateNgn": 20500,
       "maxGuests": 2,
       "bedConfig": "1 Queen Bed",
       "sizeSqm": 28,
@@ -55,7 +55,7 @@
       "tier": "Deluxe",
       "tagline": "Extra space, style, and convenience combining modern luxury with warm hospitality.",
       "description": "Experience a higher level of comfort in our Deluxe Room, designed for guests who appreciate extra space, style, and convenience. Combining modern luxury with warm hospitality, this room creates the perfect environment for relaxation after a busy day.",
-      "nightlyRateNgn": 75000,
+      "nightlyRateNgn": 22500,
       "maxGuests": 2,
       "bedConfig": "1 King Bed",
       "sizeSqm": 36,
@@ -90,7 +90,7 @@
       "tier": "Executive",
       "tagline": "Specially crafted for premium comfort, privacy, and sophistication.",
       "description": "Our Executive Room is specially crafted for guests seeking premium comfort, privacy, and sophistication. With stylish interiors, spacious accommodation, and enhanced amenities, this room offers a truly refined hospitality experience.",
-      "nightlyRateNgn": 120000,
+      "nightlyRateNgn": 25500,
       "maxGuests": 3,
       "bedConfig": "1 King Bed + Lounge Seating",
       "sizeSqm": 54,
@@ -119,47 +119,13 @@
       ]
     },
     {
-      "id": "room-lounge",
-      "slug": "suite-room",
-      "name": "Suite Room",
-      "tier": "Suite",
-      "tagline": "Separate living and sleeping areas with modern elegance for extended stays.",
-      "description": "Our Suite Room offers a perfect blend of luxury, comfort, and modern elegance for guests who desire a more spacious and refined experience. Beautifully designed with separate living and sleeping areas, the Suite provides the ideal environment for relaxation, business, and extended stays.",
-      "nightlyRateNgn": 185000,
-      "maxGuests": 3,
-      "bedConfig": "1 King Bed + Private Parlour",
-      "sizeSqm": 72,
-      "totalUnits": 2,
-      "maintenanceUnits": 0,
-      "status": "available",
-      "imageUrl": "/assets/winners/rooms/suite-4.jpg",
-      "amenities": [
-        "Separate Living & Sleeping Parlour",
-        "VIP Reserved Table at Gold Room Lounge",
-        "Private Chauffeur City Transfers",
-        "Complimentary Full-Board Breakfast"
-      ],
-      "highlights": [
-        "King + Parlour",
-        "72 m²",
-        "3 Guests max",
-        "VIP Lounge access"
-      ],
-      "galleryImages": [
-        "/assets/winners/rooms/suite-4.jpg",
-        "/assets/winners/rooms/suite-1.jpg",
-        "/assets/winners/rooms/suite-2.jpg",
-        "/assets/winners/rooms/suite-3.jpg"
-      ]
-    },
-    {
       "id": "room-presidential",
       "slug": "presidential-room",
       "name": "Presidential Room",
       "tier": "Presidential",
       "tagline": "The highest standard of luxury, exclusivity, and prestige at Winners Hotel and Suites.",
       "description": "The Presidential Room represents the highest standard of luxury and prestige at Winners Hotel and Suites. Designed for distinguished guests who desire elegance, exclusivity, and world-class comfort, this exceptional accommodation delivers an unforgettable experience.",
-      "nightlyRateNgn": 320000,
+      "nightlyRateNgn": 35500,
       "maxGuests": 4,
       "bedConfig": "2 King Bedrooms + Grand Salon",
       "sizeSqm": 128,
@@ -187,6 +153,40 @@
         "/assets/winners/rooms/presidential-4.jpg",
         "/assets/winners/rooms/presidential-5.jpg",
         "/assets/winners/rooms/presidential-7.jpg"
+      ]
+    },
+    {
+      "id": "room-lounge",
+      "slug": "suite-room",
+      "name": "Suite Room",
+      "tier": "Suite",
+      "tagline": "Separate living and sleeping areas with modern elegance for extended stays.",
+      "description": "Our Suite Room offers a perfect blend of luxury, comfort, and modern elegance for guests who desire a more spacious and refined experience. Beautifully designed with separate living and sleeping areas, the Suite provides the ideal environment for relaxation, business, and extended stays.",
+      "nightlyRateNgn": 65500,
+      "maxGuests": 3,
+      "bedConfig": "1 King Bed + Private Parlour",
+      "sizeSqm": 72,
+      "totalUnits": 2,
+      "maintenanceUnits": 0,
+      "status": "available",
+      "imageUrl": "/assets/winners/rooms/suite-4.jpg",
+      "amenities": [
+        "Separate Living & Sleeping Parlour",
+        "VIP Reserved Table at Gold Room Lounge",
+        "Private Chauffeur City Transfers",
+        "Complimentary Full-Board Breakfast"
+      ],
+      "highlights": [
+        "King + Parlour",
+        "72 m²",
+        "3 Guests max",
+        "VIP Lounge access"
+      ],
+      "galleryImages": [
+        "/assets/winners/rooms/suite-4.jpg",
+        "/assets/winners/rooms/suite-1.jpg",
+        "/assets/winners/rooms/suite-2.jpg",
+        "/assets/winners/rooms/suite-3.jpg"
       ]
     }
   ],
@@ -256,7 +256,7 @@
       "description": "Bookable architectural backdrops, golden-hour poolside decks, and private suite sets for bridal, fashion, and brand photo shoots.",
       "hours": "08:00 – 20:00 Daily",
       "flyerDepartment": "Social Media & Guest Relations",
-      "imageUrl": "/src/assets/images/facility_photoshoot_studio_1795699571078.jpg"
+      "imageUrl": "/assets/winners/hotel-exterior.jpg"
     },
     {
       "id": "amen-salon-spa",
@@ -283,7 +283,7 @@
       "description": "We keep you busy and entertained with Snooker boards, Table Soccer, PS4, and PS5 console stations for friendly guest competition.",
       "hours": "10:00 – 01:00 Daily",
       "flyerDepartment": "Entertainment & Lounge Team",
-      "imageUrl": "/assets/winners/hotel-showcase-1.jpg"
+      "imageUrl": "/src/assets/images/facility_gaming_lounge_1795878832174.jpg"
     },
     {
       "id": "amen-chauffeur-security",
@@ -309,18 +309,16 @@
       "guestsCount": 2,
       "specialRequests": "Late evening lounge table reservation for 20:30.",
       "airportPickup": true,
-      "subtotalNgn": 370000,
-      "serviceFeeNgn": 27750,
+      "subtotalNgn": 131000,
+      "serviceFeeNgn": 9825,
       "promoDiscountNgn": 0,
       "loyaltyDiscountNgn": 0,
-      "totalPaidNgn": 397750,
-      "paymentMethod": "card",
+      "totalPaidNgn": 140825,
+      "paymentMethod": "bank_transfer",
       "paymentRef": "PAY-JHS-908412",
-      "cardLast4": "4242",
-      "cardBrand": "Visa",
       "paymentStatus": "paid",
       "status": "confirmed",
-      "pointsEarned": 397,
+      "pointsEarned": 140,
       "pointsRedeemed": 0,
       "emailConfirmedAt": "2026-11-25T12:54:38.829Z",
       "createdAt": "2026-11-25T12:54:38.829Z",
@@ -340,16 +338,16 @@
       "guestsCount": 1,
       "specialRequests": "Quiet high-floor room, morning coffee at 07:00.",
       "airportPickup": false,
-      "subtotalNgn": 150000,
-      "serviceFeeNgn": 11250,
+      "subtotalNgn": 45000,
+      "serviceFeeNgn": 3375,
       "promoDiscountNgn": 0,
       "loyaltyDiscountNgn": 0,
-      "totalPaidNgn": 161250,
+      "totalPaidNgn": 48375,
       "paymentMethod": "bank_transfer",
       "paymentRef": "TRF-JHS-663201",
       "paymentStatus": "paid",
       "status": "checked_in",
-      "pointsEarned": 161,
+      "pointsEarned": 48,
       "pointsRedeemed": 0,
       "emailConfirmedAt": "2026-11-24T12:54:38.829Z",
       "createdAt": "2026-11-24T12:54:38.829Z",
@@ -369,18 +367,16 @@
       "guestsCount": 2,
       "specialRequests": "Benin Airport pickup on arrival.",
       "airportPickup": true,
-      "subtotalNgn": 600000,
-      "serviceFeeNgn": 45000,
-      "promoDiscountNgn": 90000,
+      "subtotalNgn": 127500,
+      "serviceFeeNgn": 9563,
+      "promoDiscountNgn": 19125,
       "loyaltyDiscountNgn": 0,
-      "totalPaidNgn": 555000,
-      "paymentMethod": "card",
+      "totalPaidNgn": 117938,
+      "paymentMethod": "bank_transfer",
       "paymentRef": "PAY-JHS-552104",
-      "cardLast4": "8819",
-      "cardBrand": "Mastercard",
       "paymentStatus": "paid",
       "status": "checked_in",
-      "pointsEarned": 555,
+      "pointsEarned": 117,
       "pointsRedeemed": 0,
       "emailConfirmedAt": "2026-11-23T12:54:38.829Z",
       "createdAt": "2026-11-23T12:54:38.829Z",
@@ -474,6 +470,10 @@
       "createdAt": "2026-11-26T10:54:38.829Z"
     }
   ],
-  "adminCredential": null,
+  "adminCredential": {
+    "passwordHash": "e8c8356945fcb046184d40cf5b25d4a15152e864622043b56dcb291eacf04352e598181cd36febd93b20bcdbe74568917633d11228f6dab90f9ea85dd33472f8",
+    "salt": "435d9b3fc208cf74d348598513fcd60c",
+    "claimedAt": "2026-11-28T15:14:27.657Z"
+  },
   "inquiries": []
 }
